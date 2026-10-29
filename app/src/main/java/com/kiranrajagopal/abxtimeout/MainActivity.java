@@ -1,7 +1,10 @@
 package com.kiranrajagopal.abxtimeout;
 
 import android.app.Activity;
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.net.Uri;
 import android.os.Bundle;
 import android.print.PrintAttributes;
@@ -18,6 +21,16 @@ public class MainActivity extends Activity {
 
     /** Called from the page: render report HTML and open Android's print / Save as PDF dialog. */
     public class Bridge {
+        @JavascriptInterface
+        public void setAlarms(final String json) { Alarms.setAll(getApplicationContext(), json); }
+
+        @JavascriptInterface
+        public boolean notificationsAllowed() {
+            if (Build.VERSION.SDK_INT >= 33)
+                return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            return true;
+        }
+
         @JavascriptInterface
         public void printHtml(final String html, final String name) {
             runOnUiThread(() -> {
@@ -42,6 +55,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Alarms.ensureChannel(this);
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
         web = new WebView(this);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);

@@ -128,7 +128,7 @@ textarea{resize:vertical;min-height:60px}
 .history b{color:var(--ink);font-weight:600}
 footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
 @media (prefers-reduced-motion:no-preference){.btn,.chip span{transition:background .15s,border-color .15s}}
-/* empirical 48 h alert */
+/* empirical 72 h alert */
 .course.alert{border:2px solid var(--alert);border-left:8px solid var(--alert);background:var(--alert-soft)}
 .alerttag{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--alert);color:var(--alert-ink);border-radius:7px;padding:8px 10px;font-weight:600;font-size:13.5px;letter-spacing:.02em}
 .alerttag .btn{background:var(--alert-ink);color:var(--alert);border-color:var(--alert-ink);padding:8px 12px}
@@ -176,7 +176,7 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
   <section id="activeView" class="list" aria-live="polite"></section>
   <section id="doneView" hidden></section>
 
-  <footer>First time-out falls due at 48 h and is overdue after 72 h. Empirical courses turn purple and flash at 48 h until someone acknowledges them. After a decision to continue or change, the next review falls due when the planned days end. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
+  <footer>First time-out falls due at 48 h and is overdue after 72 h. Empirical courses with no time-out turn purple and flash at 72 h until someone acknowledges them, and the phone sends a notification. After a decision to continue or change, the next review falls due when the planned days end. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
 </div>
 
 <!-- Start antibiotic sheet -->
@@ -206,7 +206,7 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
 <!-- Acknowledge sheet -->
 <div class="scrim" id="ackScrim" hidden>
   <form class="sheet" id="ackForm" novalidate>
-    <div><h2>Acknowledge 48 h alert</h2><div class="sub" id="ackSub"></div></div>
+    <div><h2>Acknowledge 72 h alert</h2><div class="sub" id="ackSub"></div></div>
     <div class="field"><label for="ackBy">Your initials</label><input type="text" id="ackBy" maxlength="8" autocomplete="off"></div>
     <div class="hint">Acknowledging stops the highlight. The time-out is still due until you record it.</div>
     <div class="err" id="ackErr"></div>
@@ -307,7 +307,7 @@ let db=null, courses=[], view="active", current=null, deleteArmed=false;
 
 function needsAck(c, now){
   return c.status!=="stopped" && c.indication==="Empirical" && !(c.reviews||[]).length && !c.ack
-    && now - Date.parse(c.startedAt) >= 48*H;
+    && now - Date.parse(c.startedAt) >= 72*H;
 }
 
 function status(c, now){
@@ -340,8 +340,28 @@ function stats(now){
   $("sOnTime").textContent = n ? Math.round(ok*100/n)+"%" : "–";
 }
 
+let lastAlarmJson="";
+function syncAlarms(){
+  if(!(window.AndroidApp && AndroidApp.setAlarms)) return;
+  const list=[];
+  courses.forEach(c=>{
+    if(c.demo || c.status==="stopped" || (c.reviews||[]).length) return;
+    const at=Date.parse(c.startedAt)+72*H;
+    const who=`Bed ${c.bed}${c.codeName?" · "+c.codeName:""}`;
+    if(c.indication==="Empirical"){
+      if(c.ack) return;
+      list.push({id:"emp72-"+c.id, at, title:"Empirical antibiotic at 72 h — "+who, text:`${c.drug} started empirically 72 h ago with no time-out. Open the app to acknowledge and review.`});
+    } else {
+      list.push({id:"due72-"+c.id, at, title:"Antibiotic time-out overdue — "+who, text:`${c.drug}: 72 h passed with no time-out recorded.`});
+    }
+  });
+  const json=JSON.stringify(list);
+  if(json!==lastAlarmJson){ lastAlarmJson=json; try{ AndroidApp.setAlarms(json); }catch(_){} }
+}
+
 function render(){
   const now = Date.now();
+  syncAlarms();
   stats(now);
   $("demoBanner").hidden = !courses.some(c=>c.demo);
   // active
@@ -350,7 +370,7 @@ function render(){
     .sort((a,b)=> (b.al-a.al) || order[a.st.s]-order[b.st.s] || a.st.due-b.st.due);
   const nAl = act.filter(x=>x.al).length;
   $("alertBar").hidden = !nAl;
-  $("alertText").textContent = nAl===1 ? "1 empirical course has passed 48 h — acknowledge and review" : nAl+" empirical courses have passed 48 h — acknowledge and review";
+  $("alertText").textContent = nAl===1 ? "1 empirical course has passed 72 h without a time-out — acknowledge and review" : nAl+" empirical courses have passed 72 h without a time-out — acknowledge and review";
   if (!act.length){
     $("activeView").innerHTML = `<div class="empty">No active antibiotics logged.<br>Use <b>Start antibiotic</b> when a new course begins.</div>`;
   } else {
@@ -365,9 +385,9 @@ function render(){
       else { label = "Overdue "+hrsTxt((now-st.due)/H); detail = st.first ? "No time-out recorded" : "Planned review missed"; }
       const revs = c.reviews||[];
       const last = revs.length ? `Last: ${esc(revs[revs.length-1].decision)} · ${fmt(revs[revs.length-1].at)}` : (c.cultureSent ? "Cultures sent" : "No cultures before first dose");
-      const ackTxt = c.ack ? `<div class="meta ackline">48 h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
+      const ackTxt = c.ack ? `<div class="meta ackline">72 h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
       return `<article class="course ${st.s}${al?" alert":""}">
-        ${al?`<div class="alerttag"><span>EMPIRICAL · 48 h PASSED · NOT ACKNOWLEDGED</span><button class="btn" type="button" data-ack="${esc(c.id)}">Acknowledge</button></div>`:""}
+        ${al?`<div class="alerttag"><span>EMPIRICAL · 72 h · NO TIME-OUT · NOT ACKNOWLEDGED</span><button class="btn" type="button" data-ack="${esc(c.id)}">Acknowledge</button></div>`:""}
         <div class="bed"><span class="k">Bed</span><span class="v">${esc(c.bed)}</span>${c.codeName?`<span class="code">${esc(c.codeName)}</span>`:""}</div>
         <div class="mid">
           <div class="drug">${esc(c.drug)} <span class="aw ${aware(c.drug)}">${AW_LABEL[aware(c.drug)]}</span></div>
@@ -505,7 +525,7 @@ document.addEventListener("click", e=>{
   const c = courses.find(x=>x.id===b.dataset.ack); if(!c) return;
   ackId=c.id; $("ackForm").reset(); $("ackErr").textContent="";
   const h=(Date.now()-Date.parse(c.startedAt))/H;
-  $("ackSub").textContent = `Bed ${c.bed}${c.codeName?" · "+c.codeName:""} · ${c.drug} · empirical · ${Math.floor(h)} h on therapy`;
+  $("ackSub").textContent = `Bed ${c.bed}${c.codeName?" · "+c.codeName:""} · ${c.drug} · empirical · ${Math.floor(h)} h on therapy · no time-out yet`;
   try{ $("ackBy").value = localStorage.getItem("abxTimeout.lastBy")||""; }catch(_){}
   $("ackScrim").hidden=false; $("ackBy").focus();
 });
@@ -560,9 +580,9 @@ function buildReport(list, from, to){
   const eligible=list.filter((c,i)=>firstH[i]!=null || c.status==="stopped" || now-Date.parse(c.startedAt)>72*H);
   const onTime=list.filter((c,i)=>firstH[i]!=null && firstH[i]<=72).length;
   const reviewed=firstH.filter(x=>x!=null);
-  const empAlert=emp.filter(c=>{const r=(c.reviews||[])[0]; const s=Date.parse(c.startedAt); return c.ack || (r? Date.parse(r.at)-s>=48*H : now-s>=48*H);});
+  const empAlert=emp.filter(c=>{const r=(c.reviews||[])[0]; const s=Date.parse(c.startedAt); return c.ack || (r? Date.parse(r.at)-s>=72*H : now-s>=72*H);});
   const acked=empAlert.filter(c=>c.ack);
-  const ackDelay=acked.map(c=>(Date.parse(c.ack.at)-Date.parse(c.startedAt))/H-48);
+  const ackDelay=acked.map(c=>(Date.parse(c.ack.at)-Date.parse(c.startedAt))/H-72);
   const firstDec={}; list.forEach(c=>{const r=(c.reviews||[])[0]; if(r) firstDec[r.decision]=(firstDec[r.decision]||0)+1;});
   const allDec={}; list.forEach(c=>(c.reviews||[]).forEach(r=>allDec[r.decision]=(allDec[r.decision]||0)+1));
   const stopped=list.filter(c=>c.status==="stopped");
@@ -579,7 +599,7 @@ function buildReport(list, from, to){
     ["Cultures before 1st dose", pct(cult,n), cult+" of "+n],
     ["Time-out done ≤ 72 h", pct(onTime,eligible.length), onTime+" of "+eligible.length+" due"],
     ["Median time to 1st time-out", fh(median(reviewed)), reviewed.length+" reviewed"],
-    ["Empirical 48 h alerts acknowledged", pct(acked.length,empAlert.length), acked.length+" of "+empAlert.length+(ackDelay.length?" · median "+fh(median(ackDelay))+" after 48 h":"")],
+    ["Empirical 72 h alerts acknowledged", pct(acked.length,empAlert.length), acked.length+" of "+empAlert.length+(ackDelay.length?" · median "+fh(median(ackDelay))+" after 72 h":"")],
     ["De-escalated at 1st time-out", pct(firstDec["De-escalate"]||0,reviewed.length), (firstDec["De-escalate"]||0)+" of "+reviewed.length],
     ["Median duration (stopped)", fd(median(dot)), stopped.length+" stopped"]
   ];
@@ -620,7 +640,7 @@ function buildReport(list, from, to){
   <div class="grid">${tbl("AWaRe category",awCount,n)}${tbl("Indication",indCount,n)}${tbl("Suspected source",srcCount,n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),reviewed.length)}</div>
   <div class="grid" style="grid-template-columns:1fr 1fr">${tbl("Most used antibiotics (top 10)",drugCount,n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),Object.values(allDec).reduce((a,b)=>a+b,0))}</div>
   <h2>Line listing (${n} courses)</h2>
-  <table class="list"><thead><tr><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic(s)</th><th>AWaRe</th><th>Indication</th><th>Source</th><th>Cx</th><th>1st T/O</th><th>Decisions</th><th>48 h ack</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="list"><thead><tr><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic(s)</th><th>AWaRe</th><th>Indication</th><th>Source</th><th>Cx</th><th>1st T/O</th><th>Decisions</th><th>72 h ack</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
   <footer>Time-out ≤ 72 h is counted among courses whose 72 h mark has passed, that were stopped, or that were reviewed. "Days" is days on therapy to stop, or to report time if active. Cx = cultures sent before the first dose. Patients are identified by bed number and code name only.</footer>
   </body></html>`;
 }
