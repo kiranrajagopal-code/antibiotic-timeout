@@ -1,0 +1,485 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<title>ICU Antibiotic Time-out</title>
+<meta name="description" content="ICU antibiotic 48-72 h time-out tracker for antimicrobial stewardship.">
+<meta name="theme-color" content="#1F5D4C">
+</head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F5; --surface:#FFFFFF; --surface-2:#E9EFED; --ink:#15201D; --muted:#56665F; --line:#D3DDDA;
+  --accent:#1F5D4C; --accent-ink:#FFFFFF; --accent-soft:#DCEBE5;
+  --ok:#2A7249; --ok-soft:#E0F0E6; --due:#8F5A0E; --due-soft:#FBEFD9; --over:#B42318; --over-soft:#FBE3E0;
+  --window:#F3E2BE; --scrim:rgba(12,20,18,.45);
+  --display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0F1614; --surface:#17211E; --surface-2:#1F2B27; --ink:#E6EEEB; --muted:#9AADA6; --line:#2C3B36;
+    --accent:#6CC3A8; --accent-ink:#0B1F19; --accent-soft:#1C3A31;
+    --ok:#74D19D; --ok-soft:#173226; --due:#F2B45A; --due-soft:#3A2C12; --over:#FF8A7A; --over-soft:#3D1C18;
+    --window:#4A3B1B; --scrim:rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0F1614; --surface:#17211E; --surface-2:#1F2B27; --ink:#E6EEEB; --muted:#9AADA6; --line:#2C3B36;
+  --accent:#6CC3A8; --accent-ink:#0B1F19; --accent-soft:#1C3A31;
+  --ok:#74D19D; --ok-soft:#173226; --due:#F2B45A; --due-soft:#3A2C12; --over:#FF8A7A; --over-soft:#3D1C18;
+  --window:#4A3B1B; --scrim:rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--display);font-weight:700;font-size:32px;line-height:1.05;margin:2px 0 0;text-wrap:balance}
+.btn{font:600 14px/1 var(--body);border-radius:8px;padding:11px 16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--over);border-color:var(--over);background:transparent}
+.btn.quiet{border-color:transparent;background:transparent;color:var(--muted);padding-inline:8px}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stat{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.stat .n{font-family:var(--display);font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.stat .l{font-size:12.5px;color:var(--muted)}
+.stat.over .n{color:var(--over)} .stat.due .n{color:var(--due)}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+.banner{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--due-soft);color:var(--ink);border-radius:8px;padding:10px 14px;font-size:14px}
+.notice{background:var(--surface-2);border-radius:8px;padding:14px;color:var(--muted)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tab{font:600 14px var(--body);background:none;border:none;color:var(--muted);padding:10px 12px;border-bottom:2px solid transparent;cursor:pointer;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+.list{display:flex;flex-direction:column;gap:10px}
+.course{display:grid;grid-template-columns:84px 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;padding:12px 14px}
+.course.overdue{border-left-color:var(--over)} .course.due{border-left-color:var(--due)} .course.pending{border-left-color:var(--ok)}
+.bed{display:flex;flex-direction:column}
+.bed .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.bed .v{font-family:var(--display);font-weight:700;font-size:28px;line-height:1;overflow-wrap:anywhere}
+.mid{display:flex;flex-direction:column;gap:6px;min-width:0}
+.drug{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:600;font-size:16px}
+.meta{font-size:13px;color:var(--muted)}
+.aw{font:600 11px/1 var(--body);letter-spacing:.05em;text-transform:uppercase;padding:4px 7px;border-radius:999px}
+.aw.Access{background:var(--ok-soft);color:var(--ok)} .aw.Watch{background:var(--due-soft);color:var(--due)}
+.aw.Reserve{background:var(--over-soft);color:var(--over)} .aw.NotRec,.aw.Antifungal,.aw.Other{background:var(--surface-2);color:var(--muted)}
+.bar{position:relative;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;max-width:420px}
+.bar .win{position:absolute;top:0;bottom:0;background:var(--window)}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);opacity:.85}
+.bar .tick{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.55}
+.state{display:flex;flex-direction:column;align-items:flex-end;gap:8px;text-align:right}
+.pill{font:600 12.5px/1 var(--body);padding:6px 10px;border-radius:999px;white-space:nowrap}
+.pill.overdue{background:var(--over-soft);color:var(--over)} .pill.due{background:var(--due-soft);color:var(--due)} .pill.pending{background:var(--ok-soft);color:var(--ok)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+@media (max-width:640px){
+  .course{grid-template-columns:64px 1fr;}
+  .state{grid-column:1 / -1;flex-direction:row;justify-content:space-between;align-items:center;text-align:left}
+  .bed .v{font-size:24px}
+}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:28px;text-align:center;color:var(--muted)}
+
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:680px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--surface-2)}
+tr:last-child td{border-bottom:none}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.sheet{background:var(--surface);color:var(--ink);border-radius:12px;width:100%;max-width:560px;max-height:calc(100% - 32px);overflow:auto;padding:20px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+@media (max-width:560px){
+  .scrim{align-items:flex-end;padding:0}
+  .sheet{border-radius:14px 14px 0 0;max-height:92%;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+}
+.sheet h2{font-family:var(--display);font-size:24px;margin:0;line-height:1.1}
+.sheet .sub{color:var(--muted);font-size:13.5px;margin-top:4px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field > label,.field > .lab{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--muted)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.row2{grid-template-columns:1fr}}
+input[type=text],input[type=number],input[type=datetime-local],select,textarea{font:15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 11px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:60px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{position:relative}
+.chip input{position:absolute;opacity:0;pointer-events:none}
+.chip span{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:999px;font-size:13.5px;cursor:pointer;background:var(--bg)}
+.chip input:checked + span{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.dec .chip span{border-radius:8px;font-weight:600}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.actions{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.actions .right{display:flex;gap:10px;margin-left:auto}
+.hint{font-size:13px;color:var(--muted);margin-top:-8px}
+.bed .code{font-size:13px;font-weight:600;color:var(--accent);margin-top:4px;overflow-wrap:anywhere}
+.err{color:var(--over);font-size:13.5px;min-height:1em}
+.history{border-top:1px solid var(--line);padding-top:12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.history b{color:var(--ink);font-weight:600}
+footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+@media (prefers-reduced-motion:no-preference){.btn,.chip span{transition:background .15s,border-color .15s}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Antimicrobial stewardship · ICU</div>
+      <h1>Antibiotic Time-out</h1>
+    </div>
+    <button class="btn primary" id="addBtn" type="button">+ Start antibiotic</button>
+  </header>
+
+  <section class="stats" aria-label="Summary">
+    <div class="stat over"><span class="n" id="sOver">–</span><span class="l">Overdue (&gt;72 h, no review)</span></div>
+    <div class="stat due"><span class="n" id="sDue">–</span><span class="l">Time-out due now</span></div>
+    <div class="stat"><span class="n" id="sActive">–</span><span class="l">Active courses</span></div>
+    <div class="stat"><span class="n" id="sOnTime">–</span><span class="l">Time-outs done by 72 h (last 30 days)</span></div>
+  </section>
+
+  <div class="banner" id="demoBanner" hidden>
+    <span>These are example rows. Clear them before logging real patients.</span>
+    <button class="btn" id="clearDemo" type="button">Clear examples</button>
+  </div>
+  <div class="notice" id="notice" hidden></div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabActive" aria-selected="true" type="button">Active</button>
+    <button class="tab" role="tab" id="tabDone" aria-selected="false" type="button">Stopped courses</button>
+  </nav>
+
+  <section id="activeView" class="list" aria-live="polite"></section>
+  <section id="doneView" hidden></section>
+
+  <footer>First time-out falls due at 48 h and is overdue after 72 h. After a decision to continue or change, the next review falls due when the planned days end. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
+</div>
+
+<!-- Start antibiotic sheet -->
+<div class="scrim" id="addScrim" hidden>
+  <form class="sheet" id="addForm" novalidate>
+    <div><h2>Start antibiotic</h2><div class="sub">Log each antibiotic separately. Its 48 h time-out starts from the start time.</div></div>
+    <div class="row2">
+      <div class="field"><label for="fBed">Bed no.</label><input type="text" id="fBed" maxlength="12" autocomplete="off" placeholder="e.g. 7"></div>
+      <div class="field"><label for="fCode">Code name</label><input type="text" id="fCode" maxlength="20" autocomplete="off" placeholder="e.g. Falcon"></div>
+    </div>
+    <div class="hint">Use a code name only. Never enter the patient's real name or IP number.</div>
+    <div class="field"><label for="fStart">Started</label><input type="datetime-local" id="fStart"></div>
+    <div class="field"><label for="fDrug">Antibiotic</label><input type="text" id="fDrug" list="drugList" autocomplete="off" placeholder="Type or pick"></div>
+    <div class="row2">
+      <div class="field"><label for="fInd">Indication</label>
+        <select id="fInd"><option>Empirical</option><option>Targeted (culture-directed)</option><option>Prophylaxis</option></select></div>
+      <div class="field"><label for="fSite">Suspected source</label>
+        <select id="fSite"><option>Lung (VAP / pneumonia)</option><option>Blood / line (CLABSI)</option><option>Urine (CAUTI / UTI)</option><option>Intra-abdominal</option><option>Skin / soft tissue</option><option>CNS</option><option>Sepsis, source unknown</option><option>Other</option></select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="fCult" checked> Cultures sent before the first dose</label>
+    <div class="field"><label for="fBy">Your initials</label><input type="text" id="fBy" maxlength="8" autocomplete="off"></div>
+    <div class="err" id="addErr"></div>
+    <div class="actions"><div class="right"><button class="btn" type="button" id="addCancel">Cancel</button><button class="btn primary" type="submit" id="addSave">Start time-out clock</button></div></div>
+  </form>
+</div>
+
+<!-- Time-out sheet -->
+<div class="scrim" id="toScrim" hidden>
+  <form class="sheet" id="toForm" novalidate>
+    <div><h2 id="toTitle">Time-out</h2><div class="sub" id="toSub"></div></div>
+    <div class="field"><span class="lab">Decision</span>
+      <div class="chips dec" id="toDec">
+        <label class="chip"><input type="radio" name="dec" value="Continue"><span>Continue</span></label>
+        <label class="chip"><input type="radio" name="dec" value="De-escalate"><span>De-escalate</span></label>
+        <label class="chip"><input type="radio" name="dec" value="IV to oral"><span>IV → oral</span></label>
+        <label class="chip"><input type="radio" name="dec" value="Escalate"><span>Escalate</span></label>
+        <label class="chip"><input type="radio" name="dec" value="Stop"><span>Stop</span></label>
+      </div>
+    </div>
+    <div class="field"><span class="lab">Reason (pick all that apply)</span>
+      <div class="chips" id="toReasons"></div>
+    </div>
+    <div class="field" id="newDrugField" hidden><label for="toNewDrug">New antibiotic</label><input type="text" id="toNewDrug" list="drugList" autocomplete="off"></div>
+    <div class="row2">
+      <div class="field" id="daysField"><label for="toDays">Review again in (days)</label><input type="number" id="toDays" min="1" max="14" step="1" value="3"></div>
+      <div class="field"><label for="toAt">Time-out done at</label><input type="datetime-local" id="toAt"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="toBy">Your initials</label><input type="text" id="toBy" maxlength="8" autocomplete="off"></div>
+      <div class="field"><label for="toNote">Note (optional)</label><input type="text" id="toNote" maxlength="140" autocomplete="off"></div>
+    </div>
+    <div class="err" id="toErr"></div>
+    <div class="actions">
+      <button class="btn quiet" type="button" id="toDelete">Delete entry</button>
+      <div class="right"><button class="btn" type="button" id="toCancel">Cancel</button><button class="btn primary" type="submit" id="toSave">Record time-out</button></div>
+    </div>
+    <div class="history" id="toHistory" hidden></div>
+  </form>
+</div>
+
+<datalist id="drugList"></datalist>
+
+<script>
+(function(){
+const H = 3600e3;
+// WHO AWaRe 2023 grouping (antifungals are outside AWaRe)
+const DRUGS = {
+  "Amoxicillin-clavulanate":"Access","Ampicillin":"Access","Cefazolin":"Access","Clindamycin":"Access","Cloxacillin":"Access",
+  "Cotrimoxazole":"Access","Doxycycline":"Access","Gentamicin":"Access","Amikacin":"Access","Metronidazole":"Access","Nitrofurantoin":"Access",
+  "Azithromycin":"Watch","Ceftriaxone":"Watch","Cefotaxime":"Watch","Ceftazidime":"Watch","Cefepime":"Watch","Cefuroxime":"Watch",
+  "Ciprofloxacin":"Watch","Levofloxacin":"Watch","Moxifloxacin":"Watch","Piperacillin-tazobactam":"Watch",
+  "Meropenem":"Watch","Imipenem-cilastatin":"Watch","Ertapenem":"Watch","Vancomycin":"Watch","Teicoplanin":"Watch","Clarithromycin":"Watch",
+  "Colistin":"Reserve","Polymyxin B":"Reserve","Tigecycline":"Reserve","Ceftazidime-avibactam":"Reserve","Aztreonam":"Reserve",
+  "Linezolid":"Reserve","Fosfomycin (IV)":"Reserve","Daptomycin":"Reserve","Cefiderocol":"Reserve","Minocycline (IV)":"Reserve",
+  "Cefoperazone-sulbactam":"NotRec",
+  "Fluconazole":"Antifungal","Voriconazole":"Antifungal","Caspofungin":"Antifungal","Micafungin":"Antifungal","Amphotericin B (liposomal)":"Antifungal"
+};
+const AW_LABEL = {Access:"Access",Watch:"Watch",Reserve:"Reserve",NotRec:"Not recommended",Antifungal:"Antifungal",Other:"Other"};
+const REASONS = {
+  "Continue":["Clinically improving, course not complete","Cultures pending","Organism sensitive, drug appropriate","Source not yet controlled"],
+  "De-escalate":["Culture: narrower drug covers organism","Cultures negative, clinically improving","MRSA ruled out","Source controlled"],
+  "IV to oral":["Afebrile, haemodynamically stable","Tolerating enteral feeds","Oral option covers organism"],
+  "Escalate":["Clinical worsening","Resistant organism isolated","New source of infection"],
+  "Stop":["Course complete","Infection unlikely / alternative diagnosis","Cultures negative, clinically improving","Source controlled","Contaminant / colonisation only","Goals of care changed"]
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const aware = d => DRUGS[d] || "Other";
+const pad = n => String(n).padStart(2,"0");
+const toLocalInput = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fmt = iso => { const d=new Date(iso); return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+" "+pad(d.getHours())+":"+pad(d.getMinutes()); };
+const hrsTxt = h => h<1 ? "<1 h" : h<48 ? Math.floor(h)+" h" : Math.floor(h/24)+" d "+Math.floor(h%24)+" h";
+
+$("drugList").innerHTML = Object.keys(DRUGS).sort().map(d=>`<option value="${esc(d)}">`).join("");
+
+let db=null, courses=[], view="active", current=null, deleteArmed=false;
+
+function status(c, now){
+  if (c.status === "stopped") return {s:"stopped"};
+  const start = Date.parse(c.startedAt);
+  const revs = c.reviews || [];
+  let due, over;
+  if (!revs.length){ due = start + 48*H; over = start + 72*H; }
+  else { due = Date.parse(revs[revs.length-1].nextDue); over = due + 24*H; }
+  const s = now < due ? "pending" : now < over ? "due" : "overdue";
+  return {s, due, over, first: !revs.length};
+}
+
+function stats(now){
+  const real = courses.filter(c=>!c.demo);
+  const pool = real.length ? real : courses;
+  const act = pool.filter(c=>c.status!=="stopped");
+  const st = act.map(c=>status(c,now));
+  $("sActive").textContent = act.length;
+  $("sOver").textContent = st.filter(x=>x.s==="overdue").length;
+  $("sDue").textContent = st.filter(x=>x.s==="due").length;
+  // first time-out on time, among courses started in last 30 days whose 72 h mark has passed or which were reviewed
+  const since = now - 30*24*H; let n=0, ok=0;
+  pool.forEach(c=>{
+    const s = Date.parse(c.startedAt); if (s < since) return;
+    const r = (c.reviews||[])[0];
+    if (r){ n++; if (Date.parse(r.at) <= s + 72*H) ok++; }
+    else if (c.status==="stopped" || now > s + 72*H){ n++; }
+  });
+  $("sOnTime").textContent = n ? Math.round(ok*100/n)+"%" : "–";
+}
+
+function render(){
+  const now = Date.now();
+  stats(now);
+  $("demoBanner").hidden = !courses.some(c=>c.demo);
+  // active
+  const order = {overdue:0,due:1,pending:2};
+  const act = courses.filter(c=>c.status!=="stopped").map(c=>({c, st:status(c,now)}))
+    .sort((a,b)=> order[a.st.s]-order[b.st.s] || a.st.due-b.st.due);
+  if (!act.length){
+    $("activeView").innerHTML = `<div class="empty">No active antibiotics logged.<br>Use <b>Start antibiotic</b> when a new course begins.</div>`;
+  } else {
+    $("activeView").innerHTML = act.map(({c,st})=>{
+      const start = Date.parse(c.startedAt), h = (now-start)/H;
+      const span = Math.max(168, Math.ceil((Math.max(h, st.due ? (st.due-start)/H : 0)+24)/24)*24);
+      const pct = x => Math.min(100, x/span*100).toFixed(2)+"%";
+      const nextH = (st.due-start)/H;
+      let label, detail;
+      if (st.s==="pending"){ label = st.first ? "Time-out in "+hrsTxt((st.due-now)/H) : "Review in "+hrsTxt((st.due-now)/H); detail = "Due "+fmt(new Date(st.due).toISOString()); }
+      else if (st.s==="due"){ label = st.first ? "Time-out due" : "Review due"; detail = "Overdue in "+hrsTxt((st.over-now)/H); }
+      else { label = "Overdue "+hrsTxt((now-st.due)/H); detail = st.first ? "No time-out recorded" : "Planned review missed"; }
+      const revs = c.reviews||[];
+      const last = revs.length ? `Last: ${esc(revs[revs.length-1].decision)} · ${fmt(revs[revs.length-1].at)}` : (c.cultureSent ? "Cultures sent" : "No cultures before first dose");
+      return `<article class="course ${st.s}">
+        <div class="bed"><span class="k">Bed</span><span class="v">${esc(c.bed)}</span>${c.codeName?`<span class="code">${esc(c.codeName)}</span>`:""}</div>
+        <div class="mid">
+          <div class="drug">${esc(c.drug)} <span class="aw ${aware(c.drug)}">${AW_LABEL[aware(c.drug)]}</span></div>
+          <div class="meta"><span class="mono">Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h</span> · ${esc(c.indication)} · ${esc(c.site)}</div>
+          <div class="bar" role="img" aria-label="${Math.floor(h)} hours on therapy">
+            ${st.first ? `<span class="win" style="left:${pct(48)};width:calc(${pct(72)} - ${pct(48)})"></span>` : ""}
+            <span class="fill" style="width:${pct(h)}"></span>
+            <span class="tick" style="left:${pct(nextH)}"></span>
+          </div>
+          <div class="meta">${last}${c.demo?' · <i>example</i>':''}</div>
+        </div>
+        <div class="state">
+          <div><span class="pill ${st.s}">${label}</span><div class="meta" style="margin-top:6px">${detail}</div></div>
+          <button class="btn ${st.s==="pending"?"":"primary"}" type="button" data-to="${esc(c.id)}">${st.first?"Record time-out":"Review"}</button>
+        </div>
+      </article>`;
+    }).join("");
+  }
+  // stopped
+  const done = courses.filter(c=>c.status==="stopped").sort((a,b)=>Date.parse(b.stoppedAt)-Date.parse(a.stoppedAt));
+  $("doneView").innerHTML = !done.length ? `<div class="empty">No stopped courses yet.</div>` :
+    `<div class="tablewrap"><table><thead><tr><th>Bed</th><th>Code name</th><th>Antibiotic(s)</th><th>Started</th><th>Stopped</th><th>Days</th><th>1st time-out</th><th>Decisions</th></tr></thead><tbody>${
+      done.map(c=>{
+        const s=Date.parse(c.startedAt), revs=c.reviews||[];
+        const drugs=[...new Set([...revs.map(r=>r.fromDrug).filter(Boolean), c.drug])].join(" → ");
+        const first = revs[0] ? Math.round((Date.parse(revs[0].at)-s)/H)+" h" : "–";
+        const late = revs[0] && (Date.parse(revs[0].at)-s)>72*H;
+        return `<tr><td><b>${esc(c.bed)}</b></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${c.demo?' <i>(example)</i>':''}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
+          <td class="num">${Math.max(1,Math.ceil((Date.parse(c.stoppedAt)-s)/(24*H)))}</td><td class="num" style="${late?'color:var(--over)':''}">${first}</td>
+          <td>${revs.map(r=>esc(r.decision)).join(" → ")}</td></tr>`;
+      }).join("")}</tbody></table></div>`;
+}
+
+/* tabs */
+function setView(v){
+  view=v; $("tabActive").setAttribute("aria-selected", v==="active"); $("tabDone").setAttribute("aria-selected", v==="done");
+  $("activeView").hidden = v!=="active"; $("doneView").hidden = v!=="done";
+}
+$("tabActive").onclick=()=>setView("active"); $("tabDone").onclick=()=>setView("done");
+
+/* add sheet */
+$("addBtn").onclick = ()=>{
+  if(!db) return;
+  $("addForm").reset(); $("fCult").checked=true; $("fStart").value = toLocalInput(new Date()); $("addErr").textContent="";
+  $("addScrim").hidden=false; $("fBed").focus();
+};
+$("addCancel").onclick = ()=>{$("addScrim").hidden=true;};
+$("addForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const bed=$("fBed").value.trim(), drug=$("fDrug").value.trim(), startV=$("fStart").value;
+  const start = startV ? new Date(startV) : null;
+  const codeName=$("fCode").value.trim();
+  if(!bed) return $("addErr").textContent="Enter the bed number.";
+  if(!codeName) return $("addErr").textContent="Enter the patient's code name.";
+  if(!drug) return $("addErr").textContent="Enter the antibiotic.";
+  if(!start || isNaN(start)) return $("addErr").textContent="Enter the start time.";
+  if(start.getTime() > Date.now()+5*60e3) return $("addErr").textContent="Start time can't be in the future.";
+  $("addSave").disabled=true;
+  try{
+    await db.collection("courses").add({
+      bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, site:$("fSite").value, cultureSent:$("fCult").checked,
+      startedAt:start.toISOString(), by:$("fBy").value.trim(), status:"active", reviews:[], createdAt:new Date().toISOString()
+    });
+    $("addScrim").hidden=true;
+  }catch(err){ $("addErr").textContent = saveError(err); }
+  finally{ $("addSave").disabled=false; }
+});
+
+/* time-out sheet */
+function fillReasons(dec){
+  $("toReasons").innerHTML = (REASONS[dec]||[]).map((r,i)=>`<label class="chip"><input type="checkbox" name="rsn" value="${esc(r)}" id="rsn${i}"><span>${esc(r)}</span></label>`).join("")
+    || `<span class="meta">Choose a decision first.</span>`;
+  $("newDrugField").hidden = !["De-escalate","IV to oral","Escalate"].includes(dec);
+  $("daysField").hidden = dec==="Stop";
+  $("toSave").textContent = dec==="Stop" ? "Record and stop" : "Record time-out";
+}
+$("toDec").addEventListener("change", e=>{ if(e.target.name==="dec") fillReasons(e.target.value); });
+
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-to]"); if(!b) return;
+  const c = courses.find(x=>x.id===b.dataset.to); if(!c) return;
+  current = c.id; deleteArmed=false; $("toDelete").textContent="Delete entry"; $("toDelete").classList.remove("danger");
+  const h = (Date.now()-Date.parse(c.startedAt))/H;
+  $("toForm").reset(); $("toErr").textContent=""; fillReasons(null);
+  $("toTitle").textContent = `Bed ${c.bed}${c.codeName?" · "+c.codeName:""} · ${c.drug}`;
+  $("toSub").textContent = `Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${c.indication} · ${c.site}`;
+  $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3;
+  const revs=c.reviews||[];
+  $("toHistory").hidden = !revs.length;
+  $("toHistory").innerHTML = revs.map(r=>`<div><b>${esc(r.decision)}</b> · ${fmt(r.at)} (${Math.round(r.hoursFromStart)} h)${r.fromDrug?` · ${esc(r.fromDrug)} → ${esc(r.toDrug)}`:""}${r.by?` · ${esc(r.by)}`:""}<br>${esc((r.reasons||[]).join("; "))}${r.note?` — ${esc(r.note)}`:""}</div>`).join("");
+  $("toScrim").hidden=false;
+});
+$("toCancel").onclick = ()=>{$("toScrim").hidden=true; current=null;};
+$("toDelete").onclick = async ()=>{
+  if(!current) return;
+  if(!deleteArmed){ deleteArmed=true; $("toDelete").textContent="Tap again to delete"; $("toDelete").classList.add("danger"); return; }
+  try{ await db.doc("courses/"+current).delete(); $("toScrim").hidden=true; current=null; }
+  catch(err){ $("toErr").textContent = saveError(err); }
+};
+$("toForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const c = courses.find(x=>x.id===current); if(!c) return;
+  const decEl = document.querySelector('input[name="dec"]:checked');
+  if(!decEl) return $("toErr").textContent="Choose a decision.";
+  const dec = decEl.value;
+  const reasons = [...document.querySelectorAll('input[name="rsn"]:checked')].map(x=>x.value);
+  if(!reasons.length) return $("toErr").textContent="Pick at least one reason.";
+  const at = new Date($("toAt").value);
+  if(isNaN(at)) return $("toErr").textContent="Enter the time-out time.";
+  if(at.getTime() < Date.parse(c.startedAt)) return $("toErr").textContent="Time-out can't be before the start time.";
+  const changes = ["De-escalate","IV to oral","Escalate"].includes(dec);
+  const newDrug = $("toNewDrug").value.trim();
+  if(changes && !newDrug) return $("toErr").textContent="Enter the new antibiotic.";
+  const days = parseInt($("toDays").value,10);
+  if(dec!=="Stop" && !(days>=1 && days<=14)) return $("toErr").textContent="Review interval must be 1–14 days.";
+  const rev = { at:at.toISOString(), decision:dec, reasons, note:$("toNote").value.trim(), by:$("toBy").value.trim(),
+    hoursFromStart:(at-Date.parse(c.startedAt))/H };
+  const patch = {};
+  if(changes){ rev.fromDrug=c.drug; rev.toDrug=newDrug; patch.drug=newDrug; patch.aware=aware(newDrug); }
+  if(dec==="Stop"){ patch.status="stopped"; patch.stoppedAt=at.toISOString(); }
+  else rev.nextDue = new Date(at.getTime()+days*24*H).toISOString();
+  patch.reviews = [...(c.reviews||[]), rev];
+  $("toSave").disabled=true;
+  try{ await db.doc("courses/"+c.id).update(patch); $("toScrim").hidden=true; current=null; }
+  catch(err){ $("toErr").textContent = saveError(err); }
+  finally{ $("toSave").disabled=false; }
+});
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ $("addScrim").hidden=true; $("toScrim").hidden=true; current=null; } });
+
+$("clearDemo").onclick = async ()=>{
+  $("clearDemo").disabled=true;
+  try{ for(const c of courses.filter(x=>x.demo)) await db.doc("courses/"+c.id).delete(); }
+  catch(err){ showNotice(saveError(err)); }
+  finally{ $("clearDemo").disabled=false; }
+};
+
+function saveError(err){
+  const code = err && err.code;
+  if(err && err.name==="QuotaExceededError") return "Storage is full. Delete old stopped courses, then try again.";
+  return "Couldn't save just now. Check your connection and try again.";
+}
+function showNotice(t){ $("notice").textContent=t; $("notice").hidden=false; }
+
+// minute tick: refresh times unless a form is open
+setInterval(()=>{ if($("addScrim").hidden && $("toScrim").hidden) render(); }, 60e3);
+
+render();
+(function(){
+  const KEY="abxTimeout.courses.v1";
+  let listeners=[];
+  function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){ return {}; } }
+  function save(m){ localStorage.setItem(KEY, JSON.stringify(m)); emit(); }
+  function emit(){ const m=load(); const snap={docs:Object.keys(m).map(id=>({id, data:()=>m[id]}))}; listeners.forEach(f=>f(snap)); }
+  const ok = (()=>{ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } })();
+  if(!ok){ $("addBtn").disabled=true; showNotice("This browser is blocking storage (private mode?). Open in a normal window to log antibiotics."); return; }
+  db = {
+    collection:()=>({
+      add: async data=>{ const m=load(); const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7); m[id]=data; save(m); return {id}; },
+      onSnapshot: cb=>{ listeners.push(cb); emit(); }
+    }),
+    doc: path=>{ const id=path.split("/")[1]; return {
+      update: async patch=>{ const m=load(); if(!m[id]) throw {code:"not_found"}; Object.assign(m[id],patch); save(m); },
+      delete: async ()=>{ const m=load(); delete m[id]; save(m); }
+    }; }
+  };
+  window.addEventListener("storage", e=>{ if(e.key===KEY) emit(); });
+  db.collection("courses").onSnapshot(snap=>{
+    courses = snap.docs.map(x=>Object.assign({id:x.id}, x.data()));
+    render();
+  });
+})();
+})();
+</script>
+
+</body></html>
