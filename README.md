@@ -1,3 +1,5 @@
+<img src="assets-store/icon-512.png" width="96" alt="App icon">
+
 # ICU Antibiotic Time-out
 
 A simple web app for antimicrobial stewardship in the ICU. It tracks every antibiotic course from its start and flags the 48–72 hour time-out review.
@@ -10,6 +12,8 @@ A simple web app for antimicrobial stewardship in the ICU. It tracks every antib
 - Record the decision: continue, de-escalate, IV to oral, escalate or stop, with reasons
 - Dashboard: overdue, due now, active courses, and % of time-outs done by 72 h (last 30 days)
 - WHO AWaRe category tag for each antibiotic (Access / Watch / Reserve)
+- Empirical courses turn purple and flash at 48 h until someone acknowledges them
+- Export a PDF report for any date range: summary indicators (time-out ≤ 72 h, cultures before first dose, de-escalation, acknowledgement of 48 h alerts, duration) and a full line listing
 - Works on phone and desktop, light and dark mode
 
 ## Data and privacy

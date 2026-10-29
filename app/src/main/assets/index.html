@@ -11,6 +11,7 @@
   --accent:#1F5D4C; --accent-ink:#FFFFFF; --accent-soft:#DCEBE5;
   --ok:#2A7249; --ok-soft:#E0F0E6; --due:#8F5A0E; --due-soft:#FBEFD9; --over:#B42318; --over-soft:#FBE3E0;
   --window:#F3E2BE; --scrim:rgba(12,20,18,.45);
+  --alert:#7A2BB8; --alert-soft:#F1E4FB; --alert-ink:#FFFFFF;
   --display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -22,6 +23,7 @@
     --accent:#6CC3A8; --accent-ink:#0B1F19; --accent-soft:#1C3A31;
     --ok:#74D19D; --ok-soft:#173226; --due:#F2B45A; --due-soft:#3A2C12; --over:#FF8A7A; --over-soft:#3D1C18;
     --window:#4A3B1B; --scrim:rgba(0,0,0,.6);
+    --alert:#C79BF2; --alert-soft:#2E1A40; --alert-ink:#1A0D26;
   }
 }
 :root[data-theme="dark"]{
@@ -30,6 +32,7 @@
   --accent:#6CC3A8; --accent-ink:#0B1F19; --accent-soft:#1C3A31;
   --ok:#74D19D; --ok-soft:#173226; --due:#F2B45A; --due-soft:#3A2C12; --over:#FF8A7A; --over-soft:#3D1C18;
   --window:#4A3B1B; --scrim:rgba(0,0,0,.6);
+    --alert:#C79BF2; --alert-soft:#2E1A40; --alert-ink:#1A0D26;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
@@ -125,6 +128,20 @@ textarea{resize:vertical;min-height:60px}
 .history b{color:var(--ink);font-weight:600}
 footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
 @media (prefers-reduced-motion:no-preference){.btn,.chip span{transition:background .15s,border-color .15s}}
+/* empirical 48 h alert */
+.course.alert{border:2px solid var(--alert);border-left:8px solid var(--alert);background:var(--alert-soft)}
+.alerttag{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--alert);color:var(--alert-ink);border-radius:7px;padding:8px 10px;font-weight:600;font-size:13.5px;letter-spacing:.02em}
+.alerttag .btn{background:var(--alert-ink);color:var(--alert);border-color:var(--alert-ink);padding:8px 12px}
+.ackline{color:var(--alert);font-weight:600}
+.alertbar{display:flex;align-items:center;gap:10px;background:var(--alert);color:var(--alert-ink);border-radius:8px;padding:11px 14px;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--alert-ink);flex:none}
+@media (prefers-reduced-motion:no-preference){
+  .course.alert{animation:pulse 1.6s ease-in-out infinite}
+  .alertbar .dot{animation:blink 1s steps(2,start) infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(122,43,184,0)}50%{box-shadow:0 0 0 6px rgba(122,43,184,.35)}}
+  @keyframes blink{to{visibility:hidden}}
+}
+.headbtns{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 
 <div class="wrap">
@@ -133,7 +150,7 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
       <div class="eyebrow">Antimicrobial stewardship · ICU</div>
       <h1>Antibiotic Time-out</h1>
     </div>
-    <button class="btn primary" id="addBtn" type="button">+ Start antibiotic</button>
+    <div class="headbtns"><button class="btn" id="pdfBtn" type="button">Export PDF</button><button class="btn primary" id="addBtn" type="button">+ Start antibiotic</button></div>
   </header>
 
   <section class="stats" aria-label="Summary">
@@ -142,6 +159,8 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
     <div class="stat"><span class="n" id="sActive">–</span><span class="l">Active courses</span></div>
     <div class="stat"><span class="n" id="sOnTime">–</span><span class="l">Time-outs done by 72 h (last 30 days)</span></div>
   </section>
+
+  <div class="alertbar" id="alertBar" role="alert" hidden><span class="dot"></span><span id="alertText"></span></div>
 
   <div class="banner" id="demoBanner" hidden>
     <span>These are example rows. Clear them before logging real patients.</span>
@@ -157,7 +176,7 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
   <section id="activeView" class="list" aria-live="polite"></section>
   <section id="doneView" hidden></section>
 
-  <footer>First time-out falls due at 48 h and is overdue after 72 h. After a decision to continue or change, the next review falls due when the planned days end. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
+  <footer>First time-out falls due at 48 h and is overdue after 72 h. Empirical courses turn purple and flash at 48 h until someone acknowledges them. After a decision to continue or change, the next review falls due when the planned days end. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
 </div>
 
 <!-- Start antibiotic sheet -->
@@ -181,6 +200,37 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
     <div class="field"><label for="fBy">Your initials</label><input type="text" id="fBy" maxlength="8" autocomplete="off"></div>
     <div class="err" id="addErr"></div>
     <div class="actions"><div class="right"><button class="btn" type="button" id="addCancel">Cancel</button><button class="btn primary" type="submit" id="addSave">Start time-out clock</button></div></div>
+  </form>
+</div>
+
+<!-- Acknowledge sheet -->
+<div class="scrim" id="ackScrim" hidden>
+  <form class="sheet" id="ackForm" novalidate>
+    <div><h2>Acknowledge 48 h alert</h2><div class="sub" id="ackSub"></div></div>
+    <div class="field"><label for="ackBy">Your initials</label><input type="text" id="ackBy" maxlength="8" autocomplete="off"></div>
+    <div class="hint">Acknowledging stops the highlight. The time-out is still due until you record it.</div>
+    <div class="err" id="ackErr"></div>
+    <div class="actions"><div class="right"><button class="btn" type="button" id="ackCancel">Cancel</button><button class="btn primary" type="submit" id="ackSave">Acknowledge</button></div></div>
+  </form>
+</div>
+
+<!-- Export sheet -->
+<div class="scrim" id="pdfScrim" hidden>
+  <form class="sheet" id="pdfForm" novalidate>
+    <div><h2>Export PDF report</h2><div class="sub">Courses started in this period, with summary indicators and a full line listing.</div></div>
+    <div class="row2">
+      <div class="field"><label for="pdfFrom">From</label><input type="date" id="pdfFrom"></div>
+      <div class="field"><label for="pdfTo">To</label><input type="date" id="pdfTo"></div>
+    </div>
+    <div class="chips" id="pdfQuick">
+      <button class="btn" type="button" data-days="7">Last 7 days</button>
+      <button class="btn" type="button" data-days="30">Last 30 days</button>
+      <button class="btn" type="button" data-days="90">Last 90 days</button>
+      <button class="btn" type="button" data-days="all">All data</button>
+    </div>
+    <div class="hint" style="margin-top:0">On Android, choose <b>Save as PDF</b> as the printer.</div>
+    <div class="err" id="pdfErr"></div>
+    <div class="actions"><div class="right"><button class="btn" type="button" id="pdfCancel">Cancel</button><button class="btn primary" type="submit" id="pdfSave">Create PDF</button></div></div>
   </form>
 </div>
 
@@ -255,6 +305,11 @@ $("drugList").innerHTML = Object.keys(DRUGS).sort().map(d=>`<option value="${esc
 
 let db=null, courses=[], view="active", current=null, deleteArmed=false;
 
+function needsAck(c, now){
+  return c.status!=="stopped" && c.indication==="Empirical" && !(c.reviews||[]).length && !c.ack
+    && now - Date.parse(c.startedAt) >= 48*H;
+}
+
 function status(c, now){
   if (c.status === "stopped") return {s:"stopped"};
   const start = Date.parse(c.startedAt);
@@ -291,12 +346,15 @@ function render(){
   $("demoBanner").hidden = !courses.some(c=>c.demo);
   // active
   const order = {overdue:0,due:1,pending:2};
-  const act = courses.filter(c=>c.status!=="stopped").map(c=>({c, st:status(c,now)}))
-    .sort((a,b)=> order[a.st.s]-order[b.st.s] || a.st.due-b.st.due);
+  const act = courses.filter(c=>c.status!=="stopped").map(c=>({c, st:status(c,now), al:needsAck(c,now)}))
+    .sort((a,b)=> (b.al-a.al) || order[a.st.s]-order[b.st.s] || a.st.due-b.st.due);
+  const nAl = act.filter(x=>x.al).length;
+  $("alertBar").hidden = !nAl;
+  $("alertText").textContent = nAl===1 ? "1 empirical course has passed 48 h — acknowledge and review" : nAl+" empirical courses have passed 48 h — acknowledge and review";
   if (!act.length){
     $("activeView").innerHTML = `<div class="empty">No active antibiotics logged.<br>Use <b>Start antibiotic</b> when a new course begins.</div>`;
   } else {
-    $("activeView").innerHTML = act.map(({c,st})=>{
+    $("activeView").innerHTML = act.map(({c,st,al})=>{
       const start = Date.parse(c.startedAt), h = (now-start)/H;
       const span = Math.max(168, Math.ceil((Math.max(h, st.due ? (st.due-start)/H : 0)+24)/24)*24);
       const pct = x => Math.min(100, x/span*100).toFixed(2)+"%";
@@ -307,7 +365,9 @@ function render(){
       else { label = "Overdue "+hrsTxt((now-st.due)/H); detail = st.first ? "No time-out recorded" : "Planned review missed"; }
       const revs = c.reviews||[];
       const last = revs.length ? `Last: ${esc(revs[revs.length-1].decision)} · ${fmt(revs[revs.length-1].at)}` : (c.cultureSent ? "Cultures sent" : "No cultures before first dose");
-      return `<article class="course ${st.s}">
+      const ackTxt = c.ack ? `<div class="meta ackline">48 h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
+      return `<article class="course ${st.s}${al?" alert":""}">
+        ${al?`<div class="alerttag"><span>EMPIRICAL · 48 h PASSED · NOT ACKNOWLEDGED</span><button class="btn" type="button" data-ack="${esc(c.id)}">Acknowledge</button></div>`:""}
         <div class="bed"><span class="k">Bed</span><span class="v">${esc(c.bed)}</span>${c.codeName?`<span class="code">${esc(c.codeName)}</span>`:""}</div>
         <div class="mid">
           <div class="drug">${esc(c.drug)} <span class="aw ${aware(c.drug)}">${AW_LABEL[aware(c.drug)]}</span></div>
@@ -317,7 +377,7 @@ function render(){
             <span class="fill" style="width:${pct(h)}"></span>
             <span class="tick" style="left:${pct(nextH)}"></span>
           </div>
-          <div class="meta">${last}${c.demo?' · <i>example</i>':''}</div>
+          <div class="meta">${last}${c.demo?' · <i>example</i>':''}</div>${ackTxt}
         </div>
         <div class="state">
           <div><span class="pill ${st.s}">${label}</span><div class="meta" style="margin-top:6px">${detail}</div></div>
@@ -395,6 +455,7 @@ document.addEventListener("click", e=>{
   $("toTitle").textContent = `Bed ${c.bed}${c.codeName?" · "+c.codeName:""} · ${c.drug}`;
   $("toSub").textContent = `Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${c.indication} · ${c.site}`;
   $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3;
+  try{ $("toBy").value = localStorage.getItem("abxTimeout.lastBy")||""; }catch(_){}
   const revs=c.reviews||[];
   $("toHistory").hidden = !revs.length;
   $("toHistory").innerHTML = revs.map(r=>`<div><b>${esc(r.decision)}</b> · ${fmt(r.at)} (${Math.round(r.hoursFromStart)} h)${r.fromDrug?` · ${esc(r.fromDrug)} → ${esc(r.toDrug)}`:""}${r.by?` · ${esc(r.by)}`:""}<br>${esc((r.reasons||[]).join("; "))}${r.note?` — ${esc(r.note)}`:""}</div>`).join("");
@@ -435,7 +496,134 @@ $("toForm").addEventListener("submit", async e=>{
   catch(err){ $("toErr").textContent = saveError(err); }
   finally{ $("toSave").disabled=false; }
 });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ $("addScrim").hidden=true; $("toScrim").hidden=true; current=null; } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ ["addScrim","toScrim","ackScrim","pdfScrim"].forEach(i=>$(i).hidden=true); current=null; ackId=null; } });
+
+/* acknowledge */
+let ackId=null;
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-ack]"); if(!b) return;
+  const c = courses.find(x=>x.id===b.dataset.ack); if(!c) return;
+  ackId=c.id; $("ackForm").reset(); $("ackErr").textContent="";
+  const h=(Date.now()-Date.parse(c.startedAt))/H;
+  $("ackSub").textContent = `Bed ${c.bed}${c.codeName?" · "+c.codeName:""} · ${c.drug} · empirical · ${Math.floor(h)} h on therapy`;
+  try{ $("ackBy").value = localStorage.getItem("abxTimeout.lastBy")||""; }catch(_){}
+  $("ackScrim").hidden=false; $("ackBy").focus();
+});
+$("ackCancel").onclick=()=>{ $("ackScrim").hidden=true; ackId=null; };
+$("ackForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const by=$("ackBy").value.trim();
+  if(!by) return $("ackErr").textContent="Enter your initials.";
+  try{ localStorage.setItem("abxTimeout.lastBy", by); }catch(_){}
+  try{ await db.doc("courses/"+ackId).update({ack:{by, at:new Date().toISOString()}}); $("ackScrim").hidden=true; ackId=null; }
+  catch(err){ $("ackErr").textContent=saveError(err); }
+});
+
+/* PDF export */
+const dIn = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function setRange(days){
+  const to=new Date(); let from;
+  if(days==="all"){ const t=courses.map(c=>Date.parse(c.startedAt)).filter(x=>!isNaN(x)); from=new Date(t.length?Math.min(...t):Date.now()); }
+  else from=new Date(Date.now()-(+days-1)*24*H);
+  $("pdfFrom").value=dIn(from); $("pdfTo").value=dIn(to);
+}
+$("pdfBtn").onclick=()=>{ setRange(30); $("pdfErr").textContent=""; $("pdfScrim").hidden=false; };
+$("pdfCancel").onclick=()=>{ $("pdfScrim").hidden=true; };
+$("pdfQuick").addEventListener("click", e=>{ const b=e.target.closest("[data-days]"); if(b) setRange(b.dataset.days); });
+$("pdfForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const f=$("pdfFrom").value, t=$("pdfTo").value;
+  if(!f||!t) return $("pdfErr").textContent="Choose both dates.";
+  const from=new Date(f+"T00:00"), to=new Date(t+"T23:59:59");
+  if(from>to) return $("pdfErr").textContent="'From' must be before 'To'.";
+  const list=courses.filter(c=>!c.demo).filter(c=>{const s=Date.parse(c.startedAt); return s>=from && s<=to;})
+    .sort((a,b)=>Date.parse(a.startedAt)-Date.parse(b.startedAt));
+  if(!list.length) return $("pdfErr").textContent="No courses started in this period.";
+  const html=buildReport(list, from, to);
+  const name="Antibiotic-Timeout-Report_"+f+"_to_"+t;
+  $("pdfScrim").hidden=true;
+  if(window.AndroidApp && AndroidApp.printHtml){ AndroidApp.printHtml(html, name); return; }
+  const fr=document.createElement("iframe"); fr.style.cssText="position:fixed;width:0;height:0;border:0;right:0;bottom:0";
+  document.body.appendChild(fr); fr.srcdoc=html;
+  fr.onload=()=>{ const t0=document.title; document.title=name; fr.contentWindow.focus(); fr.contentWindow.print(); document.title=t0; setTimeout(()=>fr.remove(),60e3); };
+});
+
+function buildReport(list, from, to){
+  const now=Date.now(), pct=(a,b)=>b?Math.round(a*100/b)+"%":"–";
+  const median=a=>{ if(!a.length) return null; const s=[...a].sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+  const fh=x=>x==null?"–":(Math.round(x*10)/10)+" h", fd=x=>x==null?"–":(Math.round(x*10)/10)+" d";
+  const dd=iso=>{ const d=new Date(iso); return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"2-digit"})+" "+pad(d.getHours())+":"+pad(d.getMinutes()); };
+  const n=list.length;
+  const emp=list.filter(c=>c.indication==="Empirical");
+  const cult=list.filter(c=>c.cultureSent).length;
+  const firstH=list.map(c=>{const r=(c.reviews||[])[0]; return r?(Date.parse(r.at)-Date.parse(c.startedAt))/H:null;});
+  const eligible=list.filter((c,i)=>firstH[i]!=null || c.status==="stopped" || now-Date.parse(c.startedAt)>72*H);
+  const onTime=list.filter((c,i)=>firstH[i]!=null && firstH[i]<=72).length;
+  const reviewed=firstH.filter(x=>x!=null);
+  const empAlert=emp.filter(c=>{const r=(c.reviews||[])[0]; const s=Date.parse(c.startedAt); return c.ack || (r? Date.parse(r.at)-s>=48*H : now-s>=48*H);});
+  const acked=empAlert.filter(c=>c.ack);
+  const ackDelay=acked.map(c=>(Date.parse(c.ack.at)-Date.parse(c.startedAt))/H-48);
+  const firstDec={}; list.forEach(c=>{const r=(c.reviews||[])[0]; if(r) firstDec[r.decision]=(firstDec[r.decision]||0)+1;});
+  const allDec={}; list.forEach(c=>(c.reviews||[]).forEach(r=>allDec[r.decision]=(allDec[r.decision]||0)+1));
+  const stopped=list.filter(c=>c.status==="stopped");
+  const dot=stopped.map(c=>(Date.parse(c.stoppedAt)-Date.parse(c.startedAt))/(24*H));
+  const count=(k)=>{const m={}; list.forEach(c=>{const v=k(c); m[v]=(m[v]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
+  const awCount=count(c=>AW_LABEL[aware(c.drug)]);
+  const indCount=count(c=>c.indication);
+  const srcCount=count(c=>c.site);
+  const drugCount=count(c=>c.drug).slice(0,10);
+  const tbl=(title,rows,total)=>`<div class="box"><h3>${esc(title)}</h3><table class="mini"><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="r">${v}</td><td class="r m">${pct(v,total)}</td></tr>`).join("")||'<tr><td class="m">None</td></tr>'}</tbody></table></div>`;
+  const kpis=[
+    ["Courses started", n, ""],
+    ["Empirical", emp.length, pct(emp.length,n)+" of courses"],
+    ["Cultures before 1st dose", pct(cult,n), cult+" of "+n],
+    ["Time-out done ≤ 72 h", pct(onTime,eligible.length), onTime+" of "+eligible.length+" due"],
+    ["Median time to 1st time-out", fh(median(reviewed)), reviewed.length+" reviewed"],
+    ["Empirical 48 h alerts acknowledged", pct(acked.length,empAlert.length), acked.length+" of "+empAlert.length+(ackDelay.length?" · median "+fh(median(ackDelay))+" after 48 h":"")],
+    ["De-escalated at 1st time-out", pct(firstDec["De-escalate"]||0,reviewed.length), (firstDec["De-escalate"]||0)+" of "+reviewed.length],
+    ["Median duration (stopped)", fd(median(dot)), stopped.length+" stopped"]
+  ];
+  const rows=list.map((c,i)=>{
+    const revs=c.reviews||[];
+    const drugs=[...new Set([...revs.map(r=>r.fromDrug).filter(Boolean), c.drug])].join(" → ");
+    const fH=firstH[i];
+    const dur=c.status==="stopped"?(Date.parse(c.stoppedAt)-Date.parse(c.startedAt))/(24*H):(now-Date.parse(c.startedAt))/(24*H);
+    return `<tr><td class="b">${esc(c.bed)}</td><td>${esc(c.codeName||"–")}</td><td class="n">${dd(c.startedAt)}</td><td>${esc(drugs)}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
+      <td>${esc(c.indication)}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Yes":"No"}</td>
+      <td class="n${fH!=null&&fH>72?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${revs.map(r=>esc(r.decision)).join(" → ")||"–"}</td>
+      <td>${c.ack?esc(c.ack.by)+" · "+dd(c.ack.at):(c.indication==="Empirical"?"–":"n/a")}</td>
+      <td>${c.status==="stopped"?"Stopped "+dd(c.stoppedAt):"Active"}</td><td class="n">${dur.toFixed(1)}</td></tr>`;
+  }).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Antibiotic Time-out Report</title><style>
+  @page{size:A4 landscape;margin:12mm}
+  *{box-sizing:border-box} body{font-family:"IBM Plex Sans",Arial,sans-serif;color:#15201D;font-size:10.5px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1F5D4C;padding-bottom:8px;margin-bottom:12px}
+  .eb{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#56665F;font-weight:600}
+  h1{font-size:21px;margin:2px 0 0;color:#1F5D4C} h2{font-size:13px;margin:16px 0 6px;color:#1F5D4C} h3{font-size:10.5px;margin:0 0 5px;text-transform:uppercase;letter-spacing:.06em;color:#56665F}
+  .meta{color:#56665F;text-align:right;font-size:10px;line-height:1.5}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .kpi{border:1px solid #D3DDDA;border-radius:6px;padding:8px 10px;break-inside:avoid}
+  .kpi .v{font-size:20px;font-weight:700;color:#1F5D4C;line-height:1.1} .kpi .l{font-weight:600;font-size:10px} .kpi .s{color:#56665F;font-size:9.5px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+  .box{border:1px solid #D3DDDA;border-radius:6px;padding:8px 10px;break-inside:avoid}
+  table{border-collapse:collapse;width:100%} .mini td{padding:2px 0;border-bottom:1px dotted #D3DDDA} .mini tr:last-child td{border:0}
+  .r{text-align:right} .m{color:#56665F;padding-left:6px}
+  .list th{background:#1F5D4C;color:#fff;text-align:left;font-size:9px;letter-spacing:.04em;text-transform:uppercase;padding:5px 5px}
+  .list td{padding:4px 5px;border-bottom:1px solid #E3E9E7;vertical-align:top} .list tr:nth-child(even) td{background:#F5F8F7}
+  .list thead{display:table-header-group} .list tr{break-inside:avoid}
+  .b{font-weight:700} .n{white-space:nowrap;font-variant-numeric:tabular-nums} .c{text-align:center} .late{color:#B42318;font-weight:700}
+  footer{margin-top:12px;color:#56665F;font-size:9px;border-top:1px solid #D3DDDA;padding-top:6px}
+  </style></head><body>
+  <header><div><div class="eb">Antimicrobial stewardship · ICU</div><h1>Antibiotic Time-out Report</h1></div>
+  <div class="meta"><b>Period:</b> ${from.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} – ${to.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}<br><b>Generated:</b> ${dd(new Date().toISOString())}</div></header>
+  <div class="kpis">${kpis.map(([l,v,s2])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${esc(l)}</div><div class="s">${esc(s2)}</div></div>`).join("")}</div>
+  <div class="grid">${tbl("AWaRe category",awCount,n)}${tbl("Indication",indCount,n)}${tbl("Suspected source",srcCount,n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),reviewed.length)}</div>
+  <div class="grid" style="grid-template-columns:1fr 1fr">${tbl("Most used antibiotics (top 10)",drugCount,n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),Object.values(allDec).reduce((a,b)=>a+b,0))}</div>
+  <h2>Line listing (${n} courses)</h2>
+  <table class="list"><thead><tr><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic(s)</th><th>AWaRe</th><th>Indication</th><th>Source</th><th>Cx</th><th>1st T/O</th><th>Decisions</th><th>48 h ack</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
+  <footer>Time-out ≤ 72 h is counted among courses whose 72 h mark has passed, that were stopped, or that were reviewed. "Days" is days on therapy to stop, or to report time if active. Cx = cultures sent before the first dose. Patients are identified by bed number and code name only.</footer>
+  </body></html>`;
+}
 
 $("clearDemo").onclick = async ()=>{
   $("clearDemo").disabled=true;
@@ -452,7 +640,7 @@ function saveError(err){
 function showNotice(t){ $("notice").textContent=t; $("notice").hidden=false; }
 
 // minute tick: refresh times unless a form is open
-setInterval(()=>{ if($("addScrim").hidden && $("toScrim").hidden) render(); }, 60e3);
+setInterval(()=>{ if(["addScrim","toScrim","ackScrim","pdfScrim"].every(i=>$(i).hidden)) render(); }, 30e3);
 
 render();
 (function(){
