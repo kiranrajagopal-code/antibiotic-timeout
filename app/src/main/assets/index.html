@@ -194,7 +194,7 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
       <div class="field"><label for="fInd">Indication</label>
         <select id="fInd"><option>Empirical</option><option>Targeted (culture-directed)</option><option>Prophylaxis</option></select></div>
       <div class="field"><label for="fSite">Suspected source</label>
-        <select id="fSite"><option>Lung (VAP / pneumonia)</option><option>Blood / line (CLABSI)</option><option>Urine (CAUTI / UTI)</option><option>Intra-abdominal</option><option>Skin / soft tissue</option><option>CNS</option><option>Sepsis, source unknown</option><option>Other</option></select></div>
+        <select id="fSite"><option>Pneumonia</option><option>Blood / line (CLABSI)</option><option>Urine (CAUTI / UTI)</option><option>Intra-abdominal</option><option>Skin / soft tissue</option><option>CNS</option><option>Sepsis, source unknown</option><option>Other</option></select></div>
     </div>
     <label class="check"><input type="checkbox" id="fCult" checked> Cultures sent before the first dose</label>
     <div class="field"><label for="fBy">Your initials</label><input type="text" id="fBy" maxlength="8" autocomplete="off"></div>
@@ -280,7 +280,7 @@ const DRUGS = {
   "Azithromycin":"Watch","Ceftriaxone":"Watch","Cefotaxime":"Watch","Ceftazidime":"Watch","Cefepime":"Watch","Cefuroxime":"Watch",
   "Ciprofloxacin":"Watch","Levofloxacin":"Watch","Moxifloxacin":"Watch","Piperacillin-tazobactam":"Watch",
   "Meropenem":"Watch","Imipenem-cilastatin":"Watch","Ertapenem":"Watch","Vancomycin":"Watch","Teicoplanin":"Watch","Clarithromycin":"Watch",
-  "Colistin":"Reserve","Polymyxin B":"Reserve","Tigecycline":"Reserve","Ceftazidime-avibactam":"Reserve","Aztreonam":"Reserve",
+  "Colistin":"Reserve","Aztreonam-avibactam":"Reserve","Ticarcillin-clavulanate":"Watch","Polymyxin B":"Reserve","Tigecycline":"Reserve","Ceftazidime-avibactam":"Reserve","Aztreonam":"Reserve",
   "Linezolid":"Reserve","Fosfomycin (IV)":"Reserve","Daptomycin":"Reserve","Cefiderocol":"Reserve","Minocycline (IV)":"Reserve",
   "Cefoperazone-sulbactam":"NotRec",
   "Fluconazole":"Antifungal","Voriconazole":"Antifungal","Caspofungin":"Antifungal","Micafungin":"Antifungal","Amphotericin B (liposomal)":"Antifungal"
@@ -683,7 +683,7 @@ render();
   };
   window.addEventListener("storage", e=>{ if(e.key===KEY) emit(); });
   db.collection("courses").onSnapshot(snap=>{
-    courses = snap.docs.map(x=>Object.assign({id:x.id}, x.data()));
+    courses = snap.docs.map(x=>{ const d=Object.assign({id:x.id}, x.data()); if(d.site==="Lung (VAP / pneumonia)") d.site="Pneumonia"; return d; });
     render();
   });
 })();
