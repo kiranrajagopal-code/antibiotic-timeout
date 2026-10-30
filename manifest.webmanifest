@@ -1,0 +1,16 @@
+{
+  "name": "Antibiotic Time-out",
+  "short_name": "Abx Time-out",
+  "description": "ICU antibiotic 72 h time-out tracker for antimicrobial stewardship.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A2E38",
+  "theme_color": "#0A2E38",
+  "icons": [
+    {"src": "web/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "web/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "web/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

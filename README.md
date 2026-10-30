@@ -2,7 +2,7 @@
 
 # ICU Antibiotic Time-out
 
-An Android app for antimicrobial stewardship in the ICU. It tracks every antibiotic course from its start and flags the 72-hour time-out review (24 hours for prophylaxis).
+An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks every antibiotic course from its start and flags the 72-hour time-out review (24 hours for prophylaxis).
 
 ## What it does
 - Log each antibiotic: bed number, code name, start time, indication (empirical / targeted / prophylaxis), rationale, suspected source, planned duration, cultures sent before first dose
@@ -25,6 +25,11 @@ This tool supports, and does not replace, the hospital antibiotic policy.
 
 ## Author
 Dr. Kiran Rajagopal — Head, Department of Critical Care Medicine, Sree Gokulam Medical College, Trivandrum
+
+## iPhone
+Open **https://kiranrajagopal-code.github.io/antibiotic-timeout/** in **Safari** → tap **Share** → **Add to Home Screen** → **Add**.
+It then opens full-screen from its own icon and works offline. Data stays on the iPhone; use Backup (Share → Save to Files / Drive).
+Notifications are Android-only; on iPhone the alerts show inside the app.
 
 ## Android app (APK)
 Every change pushed to this repository builds a new APK automatically.
