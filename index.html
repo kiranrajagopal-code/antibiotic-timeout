@@ -188,7 +188,7 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
   <section id="activeView" class="list" aria-live="polite"></section>
   <section id="doneView" hidden></section>
 
-  <footer>Time-out is due by 72 h (24 h for prophylaxis). Empirical courses at 72 h and prophylaxis at 24 h without a time-out turn purple and flash until someone acknowledges them, and the phone sends a notification. When an antibiotic is switched at a time-out, the old one is stopped and the new one starts its own record, linked to the old. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only — use Backup regularly. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
+  <footer>Time-out is due by 72 h (24 h for prophylaxis). Empirical courses at 72 h and prophylaxis at 24 h without a time-out turn purple and flash until someone acknowledges them, and the phone sends a notification. At a time-out you can add an antibiotic while continuing the current one, or stop the current one and replace it; each new antibiotic gets its own record, linked to the original. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only — use Backup regularly. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
 </div>
 
 <!-- Start / edit antibiotic sheet -->
@@ -306,8 +306,11 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
     </div>
 
     <div class="sec" id="swField" hidden>
-      <span class="lab">Switch antibiotic</span>
-      <label class="check"><input type="checkbox" id="swStop" checked> <span id="swStopTxt">Stop current antibiotic</span></label>
+      <span class="lab" id="swLab">Change antibiotic</span>
+      <div class="chips dec" id="swMode">
+        <label class="chip"><input type="radio" name="swMode" value="add"><span id="swAddTxt">Keep current, add new</span></label>
+        <label class="chip"><input type="radio" name="swMode" value="replace"><span id="swRepTxt">Stop current, replace</span></label>
+      </div>
       <div id="swRows" class="swrows"></div>
       <button class="btn quiet" type="button" id="swAdd" style="align-self:flex-start;padding-left:0">+ Add another antibiotic</button>
       <div class="row2">
@@ -485,7 +488,7 @@ function render(){
         <div class="bed"><span class="k">Bed</span><span class="v">${esc(c.bed)}</span>${c.codeName?`<span class="code">${esc(c.codeName)}</span>`:""}</div>
         <div class="mid">
           <div class="drug">${esc(c.drug)} <span class="aw ${aware(c.drug)}">${AW_LABEL[aware(c.drug)]}</span></div>
-          ${isLinked(c)?`<div class="linkline">${esc(c.linkDecision||"Switched")} from ${esc(c.linkedFromDrug)} · ${fmt(c.startedAt)}</div>`:""}
+          ${isLinked(c)?`<div class="linkline">${c.linkMode==="add"?`${esc(c.linkDecision)}: added to ${esc(c.linkedFromDrug)}`:`${esc(c.linkDecision||"Switched")} from ${esc(c.linkedFromDrug)}`} · ${fmt(c.startedAt)}</div>`:""}
           <div class="meta"><span class="mono">Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h</span> · ${esc(c.indication)} · ${esc(c.site)}</div>
           ${c.rationale?`<div class="rat"><b>Rationale:</b> ${esc(c.rationale)}</div>`:""}
           <div class="bar" role="img" aria-label="${Math.floor(h)} hours on therapy">
@@ -515,7 +518,7 @@ function render(){
         const late = revs[0] && (Date.parse(revs[0].at)-s)>deadlineH(c)*H;
         const lr = revs[revs.length-1];
         const out = lr ? esc(lr.decision)+(lr.switchedTo?" → "+esc(lr.switchedTo.join(", ")):"") : "Stopped";
-        return `<tr><td><b>${esc(c.bed)}</b></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${isLinked(c)?`<br><span class="meta">from ${esc(c.linkedFromDrug)}</span>`:""}${c.demo?' <i>(example)</i>':''}</td><td>${esc(c.indication)}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
+        return `<tr><td><b>${esc(c.bed)}</b></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${isLinked(c)?`<br><span class="meta">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</span>`:""}${c.demo?' <i>(example)</i>':''}</td><td>${esc(c.indication)}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
           <td class="num">${((Date.parse(c.stoppedAt)-s)/D).toFixed(1)}</td><td class="num" style="${late?'color:var(--over)':''}">${first}</td>
           <td>${out}</td><td><button class="btn quiet" type="button" data-to="${esc(c.id)}">Details</button></td></tr>`;
       }).join("")}</tbody></table></div>`;
@@ -589,15 +592,16 @@ function swRow(){
 $("swAdd").onclick = ()=>swRow();
 $("swRows").addEventListener("click", e=>{ if(e.target.closest(".x")){ e.target.closest(".swrow").remove(); $("swAdd").hidden=false; } });
 
+const swModeVal = () => (document.querySelector('input[name="swMode"]:checked')||{}).value;
 function syncToForm(){
   const dec = (document.querySelector('input[name="dec"]:checked')||{}).value;
   const sw = SWITCH.includes(dec);
   $("swField").hidden = !sw;
   $("planField").hidden = dec!=="Continue";
-  const stopping = dec==="Stop" || (sw && $("swStop").checked);
   $("daysField").hidden = dec==="Stop";
-  $("toDaysLab").textContent = sw && $("swStop").checked ? "Review new antibiotic in (days)" : "Review again in (days)";
-  $("toSave").textContent = dec==="Stop" ? "Record and stop" : sw ? ($("swStop").checked ? "Record and switch" : "Record and add") : "Record time-out";
+  const mode = swModeVal();
+  $("toDaysLab").textContent = sw && mode==="replace" ? "Review new antibiotic in (days)" : sw && mode==="add" ? "Review both in (days)" : "Review again in (days)";
+  $("toSave").textContent = dec==="Stop" ? "Record and stop" : sw ? (mode==="replace" ? "Record and replace" : mode==="add" ? "Record and add" : "Record time-out") : "Record time-out";
   const cx = (document.querySelector('input[name="cx"]:checked')||{}).value;
   $("cxPos").hidden = cx!=="Positive";
   if (sw) $("swInd").value = cx==="Positive" ? "Targeted (culture-directed)" : "Empirical";
@@ -606,9 +610,14 @@ function fillReasons(dec){
   $("toReasons").innerHTML = (REASONS[dec]||[]).map((r,i)=>`<label class="chip"><input type="checkbox" name="rsn" value="${esc(r)}" id="rsn${i}"><span>${esc(r)}</span></label>`).join("")
     || `<span class="meta">Choose a decision first.</span>`;
 }
-$("toDec").addEventListener("change", e=>{ if(e.target.name==="dec"){ fillReasons(e.target.value); if(SWITCH.includes(e.target.value) && !$("swRows").children.length) swRow(); syncToForm(); } });
+$("toDec").addEventListener("change", e=>{ if(e.target.name==="dec"){
+  const d=e.target.value; fillReasons(d);
+  if(SWITCH.includes(d) && !$("swRows").children.length) swRow();
+  // Escalate: no default (add-on or replace are both common). De-escalate / IV to oral: default replace.
+  document.querySelectorAll('input[name="swMode"]').forEach(r=>r.checked = d!=="Escalate" && r.value==="replace");
+  syncToForm(); } });
 $("cxRes").addEventListener("change", syncToForm);
-$("swStop").addEventListener("change", syncToForm);
+$("swMode").addEventListener("change", syncToForm);
 
 function openTimeout(c){
   current = c.id; deleteArmed=false; $("toDelete").textContent="Delete entry"; $("toDelete").classList.remove("danger");
@@ -617,7 +626,8 @@ function openTimeout(c){
   $("toForm").reset(); $("toErr").textContent=""; fillReasons(null); $("swRows").innerHTML=""; $("swAdd").hidden=false;
   $("toTitle").textContent = `${who(c)} · ${c.drug}`;
   $("toSub").textContent = `${stopped?"Stopped · ":""}Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${c.indication} · ${c.site}${c.rationale?" · "+c.rationale:""}`;
-  $("swStopTxt").textContent = `Stop ${c.drug}`;
+  $("swAddTxt").textContent = `Keep ${c.drug}, add new`;
+  $("swRepTxt").textContent = `Stop ${c.drug}, replace`;
   $("cxSusLab").textContent = `${c.drug} is`;
   $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3; $("toPlan").value = c.plannedDays||"";
   $("toBy").value = lastBy();
@@ -668,7 +678,8 @@ $("toForm").addEventListener("submit", async e=>{
   if(isNaN(at)) return err("Enter the time-out time.");
   if(at.getTime() < Date.parse(c.startedAt)) return err("Time-out can't be before the start time.");
   if(at.getTime() > Date.now()+5*60e3) return err("Time-out can't be in the future.");
-  const sw = SWITCH.includes(dec), stopCur = sw && $("swStop").checked;
+  const sw = SWITCH.includes(dec), mode = swModeVal(), stopCur = sw && mode==="replace";
+  if(sw && !mode) return err(`Choose whether to keep ${c.drug} or stop it.`);
   const days = parseInt($("toDays").value,10);
   if(dec!=="Stop" && !(days>=1 && days<=14)) return err("Review interval must be 1–14 days.");
   let newOnes=[];
@@ -699,7 +710,7 @@ $("toForm").addEventListener("submit", async e=>{
       await db.collection("courses").add({ bed:c.bed, codeName:c.codeName, drug:r.drug, aware:aware(r.drug), indication:$("swInd").value,
         site:c.site, rationale:r.rationale, plannedDays:swPlan, cultureSent:c.cultureSent, startedAt:at.toISOString(), by,
         status:"active", reviews:[], createdAt:new Date().toISOString(), culture,
-        linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, reviewDueAt:new Date(at.getTime()+days*D).toISOString() });
+        linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, linkMode:stopCur?"replace":"add", reviewDueAt:new Date(at.getTime()+days*D).toISOString() });
     }
     $("toScrim").hidden=true; current=null;
   }
@@ -865,7 +876,7 @@ function buildReport(list, from, to){
     const ps=plannedStop(c), over = ps && (c.status==="stopped"?Date.parse(c.stoppedAt):now) > ps+12*H;
     const dec = revs.map(r=>esc(r.decision)+(r.switchedTo?" → "+esc(r.switchedTo.join(", ")):"")).join("; ")||"–";
     return `<tr><td class="b">${esc(c.bed)}</td><td>${esc(c.codeName||"–")}</td><td class="n">${dd(c.startedAt)}</td>
-      <td>${esc(drugs)}${isLinked(c)?`<div class="sm">from ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
+      <td>${esc(drugs)}${isLinked(c)?`<div class="sm">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
       <td>${esc(c.indication.replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
       <td>${cxT}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
       <td>${c.ack?esc(c.ack.by)+" "+dd(c.ack.at):"–"}</td><td class="n${over?" late":""}">${c.plannedDays?c.plannedDays+" d":"–"}</td>
@@ -898,7 +909,7 @@ function buildReport(list, from, to){
   <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Organisms isolated",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${n} courses)</h2>
   <table class="list"><thead><tr><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
-  <footer>Each antibiotic is one row; a switch at time-out stops the old row and starts a new row marked "from …". Time-out on time = first time-out (or stop) within 72 h, or 24 h for prophylaxis, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.</footer>
+  <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h, or 24 h for prophylaxis, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.</footer>
   </body></html>`;
 }
 
