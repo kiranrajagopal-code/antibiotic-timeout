@@ -141,6 +141,17 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(122,43,184,0)}50%{box-shadow:0 0 0 6px rgba(122,43,184,.35)}}
   @keyframes blink{to{visibility:hidden}}
 }
+.course.paststop{border-left-color:var(--over)}
+.stoptag{display:inline-block;margin-top:2px;background:var(--over-soft);color:var(--over);font-weight:600;font-size:12.5px;border-radius:6px;padding:4px 8px}
+.linkline{font-size:13px;color:var(--accent);font-weight:600}
+.rat{font-size:13px;color:var(--ink)}
+.rat b{color:var(--muted);font-weight:600}
+.sec{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px}
+.swrows{display:flex;flex-direction:column;gap:10px}
+.swrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+@media (max-width:480px){.swrow{grid-template-columns:1fr auto}.swrow .rf{grid-column:1 / -1;grid-row:2}}
+.swrow .x{padding:10px 12px}
+.lab{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--muted)}
 .headbtns{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 
@@ -150,17 +161,18 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
       <div class="eyebrow">Antimicrobial stewardship · ICU</div>
       <h1>Antibiotic Time-out</h1>
     </div>
-    <div class="headbtns"><button class="btn" id="pdfBtn" type="button">Export PDF</button><button class="btn primary" id="addBtn" type="button">+ Start antibiotic</button></div>
+    <div class="headbtns"><button class="btn" id="dataBtn" type="button">Backup</button><button class="btn" id="pdfBtn" type="button">Export PDF</button><button class="btn primary" id="addBtn" type="button">+ Start antibiotic</button></div>
   </header>
 
   <section class="stats" aria-label="Summary">
-    <div class="stat over"><span class="n" id="sOver">–</span><span class="l">Overdue (&gt;72 h, no review)</span></div>
-    <div class="stat due"><span class="n" id="sDue">–</span><span class="l">Time-out due now</span></div>
+    <div class="stat over"><span class="n" id="sOver">–</span><span class="l">Time-out overdue</span></div>
+    <div class="stat due"><span class="n" id="sStop">–</span><span class="l">Past planned stop date</span></div>
     <div class="stat"><span class="n" id="sActive">–</span><span class="l">Active courses</span></div>
-    <div class="stat"><span class="n" id="sOnTime">–</span><span class="l">Time-outs done by 72 h (last 30 days)</span></div>
+    <div class="stat"><span class="n" id="sOnTime">–</span><span class="l">Time-outs on time (last 30 days)</span></div>
   </section>
 
   <div class="alertbar" id="alertBar" role="alert" hidden><span class="dot"></span><span id="alertText"></span></div>
+  <div class="banner" id="backupBanner" hidden><span id="backupText"></span><button class="btn" id="backupNow" type="button">Back up now</button></div>
 
   <div class="banner" id="demoBanner" hidden>
     <span>These are example rows. Clear them before logging real patients.</span>
@@ -176,13 +188,13 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
   <section id="activeView" class="list" aria-live="polite"></section>
   <section id="doneView" hidden></section>
 
-  <footer>First time-out falls due at 48 h and is overdue after 72 h. Empirical courses with no time-out turn purple and flash at 72 h until someone acknowledges them, and the phone sends a notification. After a decision to continue or change, the next review falls due when the planned days end. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
+  <footer>Time-out is due by 72 h (24 h for prophylaxis). Empirical courses at 72 h and prophylaxis at 24 h without a time-out turn purple and flash until someone acknowledges them, and the phone sends a notification. When an antibiotic is switched at a time-out, the old one is stopped and the new one starts its own record, linked to the old. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only — use Backup regularly. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
 </div>
 
-<!-- Start antibiotic sheet -->
+<!-- Start / edit antibiotic sheet -->
 <div class="scrim" id="addScrim" hidden>
   <form class="sheet" id="addForm" novalidate>
-    <div><h2>Start antibiotic</h2><div class="sub">Log each antibiotic separately. Its 48 h time-out starts from the start time.</div></div>
+    <div><h2 id="addTitle">Start antibiotic</h2><div class="sub" id="addSub">Log each antibiotic separately. Time-out is due by 72 h (24 h for prophylaxis).</div></div>
     <div class="row2">
       <div class="field"><label for="fBed">Bed no.</label><input type="text" id="fBed" maxlength="12" autocomplete="off" placeholder="e.g. 7"></div>
       <div class="field"><label for="fCode">Code name</label><input type="text" id="fCode" maxlength="20" autocomplete="off" placeholder="e.g. Falcon"></div>
@@ -196,8 +208,12 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
       <div class="field"><label for="fSite">Suspected source</label>
         <select id="fSite"><option>Pneumonia</option><option>Blood / line (CLABSI)</option><option>Urine (CAUTI / UTI)</option><option>Intra-abdominal</option><option>Skin / soft tissue</option><option>CNS</option><option>Sepsis, source unknown</option><option>Other</option></select></div>
     </div>
+    <div class="field"><label for="fRat">Rationale</label><input type="text" id="fRat" list="ratList" maxlength="160" autocomplete="off" placeholder="Why this antibiotic? Type or pick"></div>
+    <div class="row2">
+      <div class="field"><label for="fPlan">Planned duration (days)</label><input type="number" id="fPlan" min="1" max="42" step="1" placeholder="e.g. 7"></div>
+      <div class="field"><label for="fBy">Your initials</label><input type="text" id="fBy" maxlength="8" autocomplete="off"></div>
+    </div>
     <label class="check"><input type="checkbox" id="fCult" checked> Cultures sent before the first dose</label>
-    <div class="field"><label for="fBy">Your initials</label><input type="text" id="fBy" maxlength="8" autocomplete="off"></div>
     <div class="err" id="addErr"></div>
     <div class="actions"><div class="right"><button class="btn" type="button" id="addCancel">Cancel</button><button class="btn primary" type="submit" id="addSave">Start time-out clock</button></div></div>
   </form>
@@ -206,7 +222,7 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
 <!-- Acknowledge sheet -->
 <div class="scrim" id="ackScrim" hidden>
   <form class="sheet" id="ackForm" novalidate>
-    <div><h2>Acknowledge 72 h alert</h2><div class="sub" id="ackSub"></div></div>
+    <div><h2 id="ackTitle">Acknowledge alert</h2><div class="sub" id="ackSub"></div></div>
     <div class="field"><label for="ackBy">Your initials</label><input type="text" id="ackBy" maxlength="8" autocomplete="off"></div>
     <div class="hint">Acknowledging stops the highlight. The time-out is still due until you record it.</div>
     <div class="err" id="ackErr"></div>
@@ -234,6 +250,20 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
   </form>
 </div>
 
+<!-- Backup sheet -->
+<div class="scrim" id="dataScrim" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="dataH">
+    <div><h2 id="dataH">Backup &amp; restore</h2><div class="sub">Data lives only on this phone. Save a backup file to Google Drive, WhatsApp or email so nothing is lost if the phone is changed, reset or the app is removed.</div></div>
+    <div class="notice" id="dataLast" style="margin:0"></div>
+    <div class="field"><span class="lab">Backup</span><button class="btn primary" type="button" id="doBackup">Save backup file</button></div>
+    <div class="field"><span class="lab">Restore</span><button class="btn" type="button" id="doRestore">Restore from backup file</button>
+      <div class="hint" style="margin-top:0">Restoring merges the file with what is on this phone. Nothing here is deleted; where the same course exists in both, the most recently changed version is kept.</div></div>
+    <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+    <div class="err" id="dataErr"></div>
+    <div class="actions"><div class="right"><button class="btn" type="button" id="dataClose">Close</button></div></div>
+  </div>
+</div>
+
 <!-- Time-out sheet -->
 <div class="scrim" id="toScrim" hidden>
   <form class="sheet" id="toForm" novalidate>
@@ -250,18 +280,54 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
     <div class="field"><span class="lab">Reason (pick all that apply)</span>
       <div class="chips" id="toReasons"></div>
     </div>
-    <div class="field" id="newDrugField" hidden><label for="toNewDrug">New antibiotic</label><input type="text" id="toNewDrug" list="drugList" autocomplete="off"></div>
+
+    <div class="sec">
+      <div class="field"><span class="lab">Culture result</span>
+        <div class="chips" id="cxRes">
+          <label class="chip"><input type="radio" name="cx" value="Pending"><span>Pending</span></label>
+          <label class="chip"><input type="radio" name="cx" value="No growth"><span>No growth</span></label>
+          <label class="chip"><input type="radio" name="cx" value="Positive"><span>Positive</span></label>
+          <label class="chip"><input type="radio" name="cx" value="Not sent"><span>Not sent</span></label>
+        </div>
+      </div>
+      <div id="cxPos" hidden>
+        <div class="row2">
+          <div class="field"><label for="cxSpec">Specimen</label><select id="cxSpec"><option>Blood</option><option>ETA / BAL</option><option>Urine</option><option>Pus / tissue</option><option>Drain fluid</option><option>CSF</option><option>Line tip</option><option>Other</option></select></div>
+          <div class="field"><label for="cxOrg">Organism</label><input type="text" id="cxOrg" list="orgList" maxlength="60" autocomplete="off" placeholder="Type or pick"></div>
+        </div>
+        <div class="field"><span class="lab" id="cxSusLab">Current antibiotic is</span>
+          <div class="chips" id="cxSus">
+            <label class="chip"><input type="radio" name="sus" value="Sensitive"><span>Sensitive</span></label>
+            <label class="chip"><input type="radio" name="sus" value="Resistant"><span>Resistant</span></label>
+            <label class="chip"><input type="radio" name="sus" value="Not tested"><span>Not tested</span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="swField" hidden>
+      <span class="lab">Switch antibiotic</span>
+      <label class="check"><input type="checkbox" id="swStop" checked> <span id="swStopTxt">Stop current antibiotic</span></label>
+      <div id="swRows" class="swrows"></div>
+      <button class="btn quiet" type="button" id="swAdd" style="align-self:flex-start;padding-left:0">+ Add another antibiotic</button>
+      <div class="row2">
+        <div class="field"><label for="swInd">New antibiotic is</label><select id="swInd"><option>Targeted (culture-directed)</option><option>Empirical</option></select></div>
+        <div class="field"><label for="swPlan">Planned duration (days)</label><input type="number" id="swPlan" min="1" max="42" step="1" placeholder="e.g. 7"></div>
+      </div>
+    </div>
+
     <div class="row2">
-      <div class="field" id="daysField"><label for="toDays">Review again in (days)</label><input type="number" id="toDays" min="1" max="14" step="1" value="3"></div>
+      <div class="field" id="daysField"><label for="toDays" id="toDaysLab">Review again in (days)</label><input type="number" id="toDays" min="1" max="14" step="1" value="3"></div>
+      <div class="field" id="planField" hidden><label for="toPlan">Planned total duration (days)</label><input type="number" id="toPlan" min="1" max="42" step="1"></div>
+    </div>
+    <div class="row2">
       <div class="field"><label for="toAt">Time-out done at</label><input type="datetime-local" id="toAt"></div>
-    </div>
-    <div class="row2">
       <div class="field"><label for="toBy">Your initials</label><input type="text" id="toBy" maxlength="8" autocomplete="off"></div>
-      <div class="field"><label for="toNote">Note (optional)</label><input type="text" id="toNote" maxlength="140" autocomplete="off"></div>
     </div>
+    <div class="field"><label for="toNote">Note (optional)</label><input type="text" id="toNote" maxlength="140" autocomplete="off"></div>
     <div class="err" id="toErr"></div>
     <div class="actions">
-      <button class="btn quiet" type="button" id="toDelete">Delete entry</button>
+      <div style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn quiet" type="button" id="toEdit">Edit details</button><button class="btn quiet" type="button" id="toDelete">Delete entry</button></div>
       <div class="right"><button class="btn" type="button" id="toCancel">Cancel</button><button class="btn primary" type="submit" id="toSave">Record time-out</button></div>
     </div>
     <div class="history" id="toHistory" hidden></div>
@@ -269,73 +335,95 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padd
 </div>
 
 <datalist id="drugList"></datalist>
+<datalist id="ratList"></datalist>
+<datalist id="orgList"></datalist>
 
 <script>
 (function(){
-const H = 3600e3;
-// WHO AWaRe 2023 grouping (antifungals are outside AWaRe)
+const H = 3600e3, D = 24*H;
+// WHO AWaRe grouping (antifungals are outside AWaRe)
 const DRUGS = {
   "Amoxicillin-clavulanate":"Access","Ampicillin":"Access","Cefazolin":"Access","Clindamycin":"Access","Cloxacillin":"Access",
   "Cotrimoxazole":"Access","Doxycycline":"Access","Gentamicin":"Access","Amikacin":"Access","Metronidazole":"Access","Nitrofurantoin":"Access",
   "Azithromycin":"Watch","Ceftriaxone":"Watch","Cefotaxime":"Watch","Ceftazidime":"Watch","Cefepime":"Watch","Cefuroxime":"Watch",
-  "Ciprofloxacin":"Watch","Levofloxacin":"Watch","Moxifloxacin":"Watch","Piperacillin-tazobactam":"Watch",
+  "Ciprofloxacin":"Watch","Levofloxacin":"Watch","Moxifloxacin":"Watch","Piperacillin-tazobactam":"Watch","Ticarcillin-clavulanate":"Watch",
   "Meropenem":"Watch","Imipenem-cilastatin":"Watch","Ertapenem":"Watch","Vancomycin":"Watch","Teicoplanin":"Watch","Clarithromycin":"Watch",
-  "Colistin":"Reserve","Aztreonam-avibactam":"Reserve","Ticarcillin-clavulanate":"Watch","Polymyxin B":"Reserve","Tigecycline":"Reserve","Ceftazidime-avibactam":"Reserve","Aztreonam":"Reserve",
+  "Colistin":"Reserve","Polymyxin B":"Reserve","Tigecycline":"Reserve","Ceftazidime-avibactam":"Reserve","Aztreonam-avibactam":"Reserve","Aztreonam":"Reserve",
   "Linezolid":"Reserve","Fosfomycin (IV)":"Reserve","Daptomycin":"Reserve","Cefiderocol":"Reserve","Minocycline (IV)":"Reserve",
   "Cefoperazone-sulbactam":"NotRec",
   "Fluconazole":"Antifungal","Voriconazole":"Antifungal","Caspofungin":"Antifungal","Micafungin":"Antifungal","Amphotericin B (liposomal)":"Antifungal"
 };
 const AW_LABEL = {Access:"Access",Watch:"Watch",Reserve:"Reserve",NotRec:"Not recommended",Antifungal:"Antifungal",Other:"Other"};
+const RATIONALES = ["Septic shock, source unknown","Severe community-acquired pneumonia","Hospital-acquired / ventilator-associated pneumonia",
+  "Prior MDR colonisation or infection","Antibiotics in last 90 days","Immunocompromised / neutropenic","Per local antibiogram",
+  "Culture-proven, per susceptibility","Microbiology / ID advice","Surgical prophylaxis","Procedure prophylaxis"];
+const ORGS = ["Escherichia coli","Klebsiella pneumoniae","Pseudomonas aeruginosa","Acinetobacter baumannii","Enterobacter spp.","Proteus spp.",
+  "Serratia spp.","Stenotrophomonas maltophilia","Staphylococcus aureus (MSSA)","MRSA","Coagulase-negative staphylococci","Enterococcus faecalis",
+  "Enterococcus faecium (VRE)","Streptococcus pneumoniae","Candida albicans","Candida auris","Candida (non-albicans)","Mixed growth"];
 const REASONS = {
   "Continue":["Clinically improving, course not complete","Cultures pending","Organism sensitive, drug appropriate","Source not yet controlled"],
   "De-escalate":["Culture: narrower drug covers organism","Cultures negative, clinically improving","MRSA ruled out","Source controlled"],
   "IV to oral":["Afebrile, haemodynamically stable","Tolerating enteral feeds","Oral option covers organism"],
   "Escalate":["Clinical worsening","Resistant organism isolated","New source of infection"],
-  "Stop":["Course complete","Infection unlikely / alternative diagnosis","Cultures negative, clinically improving","Source controlled","Contaminant / colonisation only","Goals of care changed"]
+  "Stop":["Course complete","Infection unlikely / alternative diagnosis","Cultures negative, clinically improving","Source controlled","Contaminant / colonisation only","Prophylaxis complete","Goals of care changed"]
 };
+const SWITCH = ["De-escalate","IV to oral","Escalate"];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const aware = d => DRUGS[d] || "Other";
 const pad = n => String(n).padStart(2,"0");
 const toLocalInput = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const fmt = iso => { const d=new Date(iso); return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+" "+pad(d.getHours())+":"+pad(d.getMinutes()); };
+const fdate = t => new Date(t).toLocaleDateString("en-IN",{day:"numeric",month:"short"});
 const hrsTxt = h => h<1 ? "<1 h" : h<48 ? Math.floor(h)+" h" : Math.floor(h/24)+" d "+Math.floor(h%24)+" h";
+const who = c => `Bed ${c.bed}${c.codeName?" · "+c.codeName:""}`;
+const lastBy = () => { try{ return localStorage.getItem("abxTimeout.lastBy")||""; }catch(_){ return ""; } };
+const setLastBy = v => { try{ if(v) localStorage.setItem("abxTimeout.lastBy", v); }catch(_){} };
 
 $("drugList").innerHTML = Object.keys(DRUGS).sort().map(d=>`<option value="${esc(d)}">`).join("");
+$("ratList").innerHTML = RATIONALES.map(d=>`<option value="${esc(d)}">`).join("");
+$("orgList").innerHTML = ORGS.map(d=>`<option value="${esc(d)}">`).join("");
 
-let db=null, courses=[], view="active", current=null, deleteArmed=false;
+let db=null, courses=[], view="active", current=null, deleteArmed=false, editId=null;
+const SCRIMS=["addScrim","toScrim","ackScrim","pdfScrim","dataScrim"];
+
+/* ---------- rules ---------- */
+const isProph = c => c.indication==="Prophylaxis";
+const deadlineH = c => isProph(c) ? 24 : 72;
+const plannedStop = c => c.plannedDays ? Date.parse(c.startedAt) + c.plannedDays*D : null;
+const isLinked = c => !!c.linkedFrom;
 
 function needsAck(c, now){
-  return c.status!=="stopped" && c.indication==="Empirical" && !(c.reviews||[]).length && !c.ack
-    && now - Date.parse(c.startedAt) >= 72*H;
+  if (c.status==="stopped" || (c.reviews||[]).length || c.ack || c.reviewDueAt) return false;
+  if (c.indication!=="Empirical" && !isProph(c)) return false;
+  return now - Date.parse(c.startedAt) >= deadlineH(c)*H;
 }
-
 function status(c, now){
   if (c.status === "stopped") return {s:"stopped"};
-  const start = Date.parse(c.startedAt);
-  const revs = c.reviews || [];
-  let due, over;
-  if (!revs.length){ due = start + 48*H; over = start + 72*H; }
-  else { due = Date.parse(revs[revs.length-1].nextDue); over = due + 24*H; }
-  const s = now < due ? "pending" : now < over ? "due" : "overdue";
-  return {s, due, over, first: !revs.length};
+  const start = Date.parse(c.startedAt), revs = c.reviews || [];
+  let due, first=false;
+  if (revs.length) due = Date.parse(revs[revs.length-1].nextDue);
+  else if (c.reviewDueAt) due = Date.parse(c.reviewDueAt);
+  else { due = start + deadlineH(c)*H; first=true; }
+  const ps = plannedStop(c);
+  return {s: now < due ? "pending" : "overdue", due, first, pastStop: !!ps && now > ps, ps};
 }
 
+/* ---------- dashboard ---------- */
 function stats(now){
-  const real = courses.filter(c=>!c.demo);
-  const pool = real.length ? real : courses;
-  const act = pool.filter(c=>c.status!=="stopped");
-  const st = act.map(c=>status(c,now));
+  const real = courses.filter(c=>!c.demo), pool = real.length ? real : courses;
+  const act = pool.filter(c=>c.status!=="stopped"), st = act.map(c=>status(c,now));
   $("sActive").textContent = act.length;
   $("sOver").textContent = st.filter(x=>x.s==="overdue").length;
-  $("sDue").textContent = st.filter(x=>x.s==="due").length;
-  // first time-out on time, among courses started in last 30 days whose 72 h mark has passed or which were reviewed
-  const since = now - 30*24*H; let n=0, ok=0;
+  $("sStop").textContent = st.filter(x=>x.pastStop).length;
+  const since = now - 30*D; let n=0, ok=0;
   pool.forEach(c=>{
+    if (isLinked(c)) return;
     const s = Date.parse(c.startedAt); if (s < since) return;
-    const r = (c.reviews||[])[0];
-    if (r){ n++; if (Date.parse(r.at) <= s + 72*H) ok++; }
-    else if (c.status==="stopped" || now > s + 72*H){ n++; }
+    const lim = s + deadlineH(c)*H, r = (c.reviews||[])[0];
+    if (r){ n++; if (Date.parse(r.at) <= lim) ok++; }
+    else if (c.status==="stopped"){ n++; if (Date.parse(c.stoppedAt) <= lim) ok++; }
+    else if (now > lim) n++;
   });
   $("sOnTime").textContent = n ? Math.round(ok*100/n)+"%" : "–";
 }
@@ -345,63 +433,73 @@ function syncAlarms(){
   if(!(window.AndroidApp && AndroidApp.setAlarms)) return;
   const list=[];
   courses.forEach(c=>{
-    if(c.demo || c.status==="stopped" || (c.reviews||[]).length) return;
-    const at=Date.parse(c.startedAt)+72*H;
-    const who=`Bed ${c.bed}${c.codeName?" · "+c.codeName:""}`;
-    if(c.indication==="Empirical"){
-      if(c.ack) return;
-      list.push({id:"emp72-"+c.id, at, title:"Empirical antibiotic at 72 h — "+who, text:`${c.drug} started empirically 72 h ago with no time-out. Open the app to acknowledge and review.`});
+    if(c.demo || c.status==="stopped") return;
+    const st = status(c, Date.now()), w = who(c);
+    if (st.first){
+      if (c.indication==="Empirical"){ if(!c.ack) list.push({id:"emp-"+c.id, at:st.due, title:"Empirical antibiotic at 72 h — "+w, text:`${c.drug} started empirically 72 h ago with no time-out. Open the app to acknowledge and review.`}); }
+      else if (isProph(c)){ if(!c.ack) list.push({id:"pro-"+c.id, at:st.due, title:"Prophylaxis past 24 h — "+w, text:`${c.drug} prophylaxis has run 24 h. Stop, or record why it continues.`}); }
+      else list.push({id:"due-"+c.id, at:st.due, title:"Antibiotic time-out due — "+w, text:`${c.drug}: 72 h reached with no time-out recorded.`});
     } else {
-      list.push({id:"due72-"+c.id, at, title:"Antibiotic time-out overdue — "+who, text:`${c.drug}: 72 h passed with no time-out recorded.`});
+      list.push({id:"rev-"+c.id+"-"+st.due, at:st.due, title:"Antibiotic review due — "+w, text:`${c.drug}: planned review is due now.`});
     }
+    if (st.ps) list.push({id:"stp-"+c.id+"-"+st.ps, at:st.ps, title:"Planned stop date reached — "+w, text:`${c.drug}: planned ${c.plannedDays}-day course ends now. Stop, or extend with a reason.`});
   });
   const json=JSON.stringify(list);
   if(json!==lastAlarmJson){ lastAlarmJson=json; try{ AndroidApp.setAlarms(json); }catch(_){} }
 }
 
+function cultureTxt(cx){
+  if(!cx) return "";
+  if(cx.result!=="Positive") return "Culture: "+cx.result;
+  return `Culture: ${cx.organism} (${cx.specimen})${cx.sus?" · "+(cx.susFor?cx.susFor+" ":"")+cx.sus.toLowerCase():""}`;
+}
+
 function render(){
   const now = Date.now();
-  syncAlarms();
-  stats(now);
+  syncAlarms(); stats(now); backupNudge();
   $("demoBanner").hidden = !courses.some(c=>c.demo);
-  // active
-  const order = {overdue:0,due:1,pending:2};
   const act = courses.filter(c=>c.status!=="stopped").map(c=>({c, st:status(c,now), al:needsAck(c,now)}))
-    .sort((a,b)=> (b.al-a.al) || order[a.st.s]-order[b.st.s] || a.st.due-b.st.due);
+    .sort((a,b)=> (b.al-a.al) || ((b.st.s==="overdue")-(a.st.s==="overdue")) || (b.st.pastStop-a.st.pastStop) || a.st.due-b.st.due);
   const nAl = act.filter(x=>x.al).length;
   $("alertBar").hidden = !nAl;
-  $("alertText").textContent = nAl===1 ? "1 empirical course has passed 72 h without a time-out — acknowledge and review" : nAl+" empirical courses have passed 72 h without a time-out — acknowledge and review";
+  $("alertText").textContent = (nAl===1 ? "1 course needs" : nAl+" courses need")+" acknowledgement — empirical past 72 h or prophylaxis past 24 h without a time-out";
   if (!act.length){
     $("activeView").innerHTML = `<div class="empty">No active antibiotics logged.<br>Use <b>Start antibiotic</b> when a new course begins.</div>`;
   } else {
     $("activeView").innerHTML = act.map(({c,st,al})=>{
       const start = Date.parse(c.startedAt), h = (now-start)/H;
-      const span = Math.max(168, Math.ceil((Math.max(h, st.due ? (st.due-start)/H : 0)+24)/24)*24);
-      const pct = x => Math.min(100, x/span*100).toFixed(2)+"%";
-      const nextH = (st.due-start)/H;
+      const endH = Math.max(h, (st.due-start)/H, st.ps ? (st.ps-start)/H : 0);
+      const span = Math.max(168, Math.ceil((endH+24)/24)*24);
+      const pct = x => Math.min(100, Math.max(0,x)/span*100).toFixed(2)+"%";
       let label, detail;
-      if (st.s==="pending"){ label = st.first ? "Time-out in "+hrsTxt((st.due-now)/H) : "Review in "+hrsTxt((st.due-now)/H); detail = "Due "+fmt(new Date(st.due).toISOString()); }
-      else if (st.s==="due"){ label = st.first ? "Time-out due" : "Review due"; detail = "Overdue in "+hrsTxt((st.over-now)/H); }
-      else { label = "Overdue "+hrsTxt((now-st.due)/H); detail = st.first ? "No time-out recorded" : "Planned review missed"; }
-      const revs = c.reviews||[];
-      const last = revs.length ? `Last: ${esc(revs[revs.length-1].decision)} · ${fmt(revs[revs.length-1].at)}` : (c.cultureSent ? "Cultures sent" : "No cultures before first dose");
-      const ackTxt = c.ack ? `<div class="meta ackline">72 h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
-      return `<article class="course ${st.s}${al?" alert":""}">
-        ${al?`<div class="alerttag"><span>EMPIRICAL · 72 h · NO TIME-OUT · NOT ACKNOWLEDGED</span><button class="btn" type="button" data-ack="${esc(c.id)}">Acknowledge</button></div>`:""}
+      const kind = st.first ? "Time-out" : "Review";
+      if (st.s==="pending"){ label = kind+" in "+hrsTxt((st.due-now)/H); detail = "Due "+fmt(new Date(st.due).toISOString()); }
+      else { label = kind+" overdue "+hrsTxt((now-st.due)/H); detail = st.first ? (isProph(c)?"Prophylaxis past 24 h":"No time-out by 72 h") : "Planned review missed"; }
+      const revs = c.reviews||[], lr = revs[revs.length-1];
+      const last = lr ? `Last: ${esc(lr.decision)} · ${fmt(lr.at)}` : (c.cultureSent ? "Cultures sent before first dose" : "No cultures before first dose");
+      const cx = (lr && lr.culture) || c.culture;
+      const tag = isProph(c) ? "PROPHYLAXIS · 24 h · STOP OR JUSTIFY · NOT ACKNOWLEDGED" : "EMPIRICAL · 72 h · NO TIME-OUT · NOT ACKNOWLEDGED";
+      const ackTxt = c.ack ? `<div class="meta ackline">${isProph(c)?"24":"72"} h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
+      return `<article class="course ${st.s==="overdue"?"overdue":"pending"}${st.pastStop?" paststop":""}${al?" alert":""}">
+        ${al?`<div class="alerttag"><span>${tag}</span><button class="btn" type="button" data-ack="${esc(c.id)}">Acknowledge</button></div>`:""}
         <div class="bed"><span class="k">Bed</span><span class="v">${esc(c.bed)}</span>${c.codeName?`<span class="code">${esc(c.codeName)}</span>`:""}</div>
         <div class="mid">
           <div class="drug">${esc(c.drug)} <span class="aw ${aware(c.drug)}">${AW_LABEL[aware(c.drug)]}</span></div>
+          ${isLinked(c)?`<div class="linkline">${esc(c.linkDecision||"Switched")} from ${esc(c.linkedFromDrug)} · ${fmt(c.startedAt)}</div>`:""}
           <div class="meta"><span class="mono">Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h</span> · ${esc(c.indication)} · ${esc(c.site)}</div>
+          ${c.rationale?`<div class="rat"><b>Rationale:</b> ${esc(c.rationale)}</div>`:""}
           <div class="bar" role="img" aria-label="${Math.floor(h)} hours on therapy">
-            ${st.first ? `<span class="win" style="left:${pct(48)};width:calc(${pct(72)} - ${pct(48)})"></span>` : ""}
             <span class="fill" style="width:${pct(h)}"></span>
-            <span class="tick" style="left:${pct(nextH)}"></span>
+            <span class="tick" style="left:${pct((st.due-start)/H)}"></span>
+            ${st.ps?`<span class="tick" style="left:${pct((st.ps-start)/H)};background:var(--over);opacity:.9"></span>`:""}
           </div>
-          <div class="meta">${last}${c.demo?' · <i>example</i>':''}</div>${ackTxt}
+          <div class="meta">${last}${cx?" · "+esc(cultureTxt(cx)):""}${c.demo?' · <i>example</i>':''}</div>
+          ${st.ps?(st.pastStop?`<div><span class="stoptag">Past planned stop (${c.plannedDays} d, ${fdate(st.ps)}) — stop or extend</span></div>`:`<div class="meta">Planned stop ${fdate(st.ps)} (${c.plannedDays} d)</div>`):""}
+          ${ackTxt}
         </div>
         <div class="state">
-          <div><span class="pill ${st.s}">${label}</span><div class="meta" style="margin-top:6px">${detail}</div></div>
-          <button class="btn ${st.s==="pending"?"":"primary"}" type="button" data-to="${esc(c.id)}">${st.first?"Record time-out":"Review"}</button>
+          <div><span class="pill ${st.s==="overdue"?"overdue":"pending"}">${label}</span><div class="meta" style="margin-top:6px">${detail}</div></div>
+          <button class="btn ${st.s==="overdue"||st.pastStop?"primary":""}" type="button" data-to="${esc(c.id)}">${st.first?"Record time-out":"Review"}</button>
         </div>
       </article>`;
     }).join("");
@@ -409,15 +507,17 @@ function render(){
   // stopped
   const done = courses.filter(c=>c.status==="stopped").sort((a,b)=>Date.parse(b.stoppedAt)-Date.parse(a.stoppedAt));
   $("doneView").innerHTML = !done.length ? `<div class="empty">No stopped courses yet.</div>` :
-    `<div class="tablewrap"><table><thead><tr><th>Bed</th><th>Code name</th><th>Antibiotic(s)</th><th>Started</th><th>Stopped</th><th>Days</th><th>1st time-out</th><th>Decisions</th></tr></thead><tbody>${
+    `<div class="tablewrap"><table><thead><tr><th>Bed</th><th>Code name</th><th>Antibiotic</th><th>Indication</th><th>Started</th><th>Stopped</th><th>Days</th><th>1st time-out</th><th>Outcome</th><th></th></tr></thead><tbody>${
       done.map(c=>{
         const s=Date.parse(c.startedAt), revs=c.reviews||[];
         const drugs=[...new Set([...revs.map(r=>r.fromDrug).filter(Boolean), c.drug])].join(" → ");
         const first = revs[0] ? Math.round((Date.parse(revs[0].at)-s)/H)+" h" : "–";
-        const late = revs[0] && (Date.parse(revs[0].at)-s)>72*H;
-        return `<tr><td><b>${esc(c.bed)}</b></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${c.demo?' <i>(example)</i>':''}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
-          <td class="num">${Math.max(1,Math.ceil((Date.parse(c.stoppedAt)-s)/(24*H)))}</td><td class="num" style="${late?'color:var(--over)':''}">${first}</td>
-          <td>${revs.map(r=>esc(r.decision)).join(" → ")}</td></tr>`;
+        const late = revs[0] && (Date.parse(revs[0].at)-s)>deadlineH(c)*H;
+        const lr = revs[revs.length-1];
+        const out = lr ? esc(lr.decision)+(lr.switchedTo?" → "+esc(lr.switchedTo.join(", ")):"") : "Stopped";
+        return `<tr><td><b>${esc(c.bed)}</b></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${isLinked(c)?`<br><span class="meta">from ${esc(c.linkedFromDrug)}</span>`:""}${c.demo?' <i>(example)</i>':''}</td><td>${esc(c.indication)}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
+          <td class="num">${((Date.parse(c.stoppedAt)-s)/D).toFixed(1)}</td><td class="num" style="${late?'color:var(--over)':''}">${first}</td>
+          <td>${out}</td><td><button class="btn quiet" type="button" data-to="${esc(c.id)}">Details</button></td></tr>`;
       }).join("")}</tbody></table></div>`;
 }
 
@@ -428,60 +528,118 @@ function setView(v){
 }
 $("tabActive").onclick=()=>setView("active"); $("tabDone").onclick=()=>setView("done");
 
-/* add sheet */
-$("addBtn").onclick = ()=>{
-  if(!db) return;
-  $("addForm").reset(); $("fCult").checked=true; $("fStart").value = toLocalInput(new Date()); $("addErr").textContent="";
-  $("addScrim").hidden=false; $("fBed").focus();
-};
-$("addCancel").onclick = ()=>{$("addScrim").hidden=true;};
+/* ---------- start / edit sheet ---------- */
+function openAdd(c){
+  editId = c ? c.id : null;
+  $("addForm").reset(); $("addErr").textContent="";
+  $("addTitle").textContent = c ? "Edit details" : "Start antibiotic";
+  $("addSub").textContent = c ? `${who(c)} · ${c.drug}. Time-out history is kept.` : "Log each antibiotic separately. Time-out is due by 72 h (24 h for prophylaxis).";
+  $("addSave").textContent = c ? "Save changes" : "Start time-out clock";
+  if (c){
+    $("fBed").value=c.bed||""; $("fCode").value=c.codeName||""; $("fStart").value=toLocalInput(new Date(c.startedAt));
+    $("fDrug").value=c.drug||""; $("fInd").value=c.indication; $("fSite").value=c.site; $("fRat").value=c.rationale||"";
+    $("fPlan").value=c.plannedDays||""; $("fBy").value=c.by||lastBy(); $("fCult").checked=!!c.cultureSent;
+  } else { $("fCult").checked=true; $("fStart").value = toLocalInput(new Date()); $("fBy").value=lastBy(); }
+  $("addScrim").hidden=false; if(!c) $("fBed").focus();
+}
+$("addBtn").onclick = ()=>{ if(db) openAdd(null); };
+$("addCancel").onclick = ()=>{ $("addScrim").hidden=true; editId=null; };
+$("fInd").addEventListener("change", ()=>{ if($("fInd").value==="Prophylaxis" && !$("fRat").value) $("fRat").value="Surgical prophylaxis"; });
 $("addForm").addEventListener("submit", async e=>{
   e.preventDefault();
-  const bed=$("fBed").value.trim(), drug=$("fDrug").value.trim(), startV=$("fStart").value;
+  const bed=$("fBed").value.trim(), drug=$("fDrug").value.trim(), startV=$("fStart").value, codeName=$("fCode").value.trim();
+  const rationale=$("fRat").value.trim(), planV=$("fPlan").value.trim();
   const start = startV ? new Date(startV) : null;
-  const codeName=$("fCode").value.trim();
-  if(!bed) return $("addErr").textContent="Enter the bed number.";
-  if(!codeName) return $("addErr").textContent="Enter the patient's code name.";
-  if(!drug) return $("addErr").textContent="Enter the antibiotic.";
-  if(!start || isNaN(start)) return $("addErr").textContent="Enter the start time.";
-  if(start.getTime() > Date.now()+5*60e3) return $("addErr").textContent="Start time can't be in the future.";
+  const err = t => { $("addErr").textContent=t; };
+  if(!bed) return err("Enter the bed number.");
+  if(!codeName) return err("Enter the patient's code name.");
+  if(!drug) return err("Enter the antibiotic.");
+  if(!start || isNaN(start)) return err("Enter the start time.");
+  if(start.getTime() > Date.now()+5*60e3) return err("Start time can't be in the future.");
+  if(!rationale) return err("Enter the rationale.");
+  const plannedDays = planV ? parseInt(planV,10) : null;
+  if(planV && !(plannedDays>=1 && plannedDays<=42)) return err("Planned duration must be 1–42 days.");
+  const by=$("fBy").value.trim(); setLastBy(by);
+  const data = { bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, site:$("fSite").value, rationale,
+    plannedDays, cultureSent:$("fCult").checked, startedAt:start.toISOString() };
   $("addSave").disabled=true;
   try{
-    await db.collection("courses").add({
-      bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, site:$("fSite").value, cultureSent:$("fCult").checked,
-      startedAt:start.toISOString(), by:$("fBy").value.trim(), status:"active", reviews:[], createdAt:new Date().toISOString()
-    });
-    $("addScrim").hidden=true;
-  }catch(err){ $("addErr").textContent = saveError(err); }
+    if (editId){
+      const c = courses.find(x=>x.id===editId);
+      if (c && (c.reviews||[]).some(r=>Date.parse(r.at) < start.getTime())) { $("addSave").disabled=false; return err("Start time can't be after a recorded time-out."); }
+      await db.doc("courses/"+editId).update(data);
+    } else {
+      await db.collection("courses").add(Object.assign(data, { by, status:"active", reviews:[], createdAt:new Date().toISOString() }));
+    }
+    $("addScrim").hidden=true; editId=null;
+  }catch(er){ err(saveError(er)); }
   finally{ $("addSave").disabled=false; }
 });
 
-/* time-out sheet */
+/* ---------- time-out sheet ---------- */
+function swRow(){
+  const n = $("swRows").children.length;
+  const d = document.createElement("div"); d.className="swrow";
+  d.innerHTML = `<div class="field"><label>New antibiotic${n?" "+(n+1):""}</label><input type="text" class="swDrug" list="drugList" autocomplete="off" placeholder="Type or pick"></div>
+    <div class="field rf"><label>Rationale</label><input type="text" class="swRat" list="ratList" maxlength="160" autocomplete="off" placeholder="Why this antibiotic?"></div>
+    ${n?`<button class="btn quiet x" type="button" aria-label="Remove">✕</button>`:"<span></span>"}`;
+  $("swRows").appendChild(d);
+  $("swAdd").hidden = $("swRows").children.length>=3;
+}
+$("swAdd").onclick = ()=>swRow();
+$("swRows").addEventListener("click", e=>{ if(e.target.closest(".x")){ e.target.closest(".swrow").remove(); $("swAdd").hidden=false; } });
+
+function syncToForm(){
+  const dec = (document.querySelector('input[name="dec"]:checked')||{}).value;
+  const sw = SWITCH.includes(dec);
+  $("swField").hidden = !sw;
+  $("planField").hidden = dec!=="Continue";
+  const stopping = dec==="Stop" || (sw && $("swStop").checked);
+  $("daysField").hidden = dec==="Stop";
+  $("toDaysLab").textContent = sw && $("swStop").checked ? "Review new antibiotic in (days)" : "Review again in (days)";
+  $("toSave").textContent = dec==="Stop" ? "Record and stop" : sw ? ($("swStop").checked ? "Record and switch" : "Record and add") : "Record time-out";
+  const cx = (document.querySelector('input[name="cx"]:checked')||{}).value;
+  $("cxPos").hidden = cx!=="Positive";
+  if (sw) $("swInd").value = cx==="Positive" ? "Targeted (culture-directed)" : "Empirical";
+}
 function fillReasons(dec){
   $("toReasons").innerHTML = (REASONS[dec]||[]).map((r,i)=>`<label class="chip"><input type="checkbox" name="rsn" value="${esc(r)}" id="rsn${i}"><span>${esc(r)}</span></label>`).join("")
     || `<span class="meta">Choose a decision first.</span>`;
-  $("newDrugField").hidden = !["De-escalate","IV to oral","Escalate"].includes(dec);
-  $("daysField").hidden = dec==="Stop";
-  $("toSave").textContent = dec==="Stop" ? "Record and stop" : "Record time-out";
 }
-$("toDec").addEventListener("change", e=>{ if(e.target.name==="dec") fillReasons(e.target.value); });
+$("toDec").addEventListener("change", e=>{ if(e.target.name==="dec"){ fillReasons(e.target.value); if(SWITCH.includes(e.target.value) && !$("swRows").children.length) swRow(); syncToForm(); } });
+$("cxRes").addEventListener("change", syncToForm);
+$("swStop").addEventListener("change", syncToForm);
 
+function openTimeout(c){
+  current = c.id; deleteArmed=false; $("toDelete").textContent="Delete entry"; $("toDelete").classList.remove("danger");
+  const stopped = c.status==="stopped";
+  const h = ((stopped?Date.parse(c.stoppedAt):Date.now())-Date.parse(c.startedAt))/H;
+  $("toForm").reset(); $("toErr").textContent=""; fillReasons(null); $("swRows").innerHTML=""; $("swAdd").hidden=false;
+  $("toTitle").textContent = `${who(c)} · ${c.drug}`;
+  $("toSub").textContent = `${stopped?"Stopped · ":""}Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${c.indication} · ${c.site}${c.rationale?" · "+c.rationale:""}`;
+  $("swStopTxt").textContent = `Stop ${c.drug}`;
+  $("cxSusLab").textContent = `${c.drug} is`;
+  $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3; $("toPlan").value = c.plannedDays||"";
+  $("toBy").value = lastBy();
+  const prevCx = [...(c.reviews||[])].reverse().map(r=>r.culture).find(Boolean) || c.culture;
+  if (prevCx){ const r=document.querySelector(`input[name="cx"][value="${prevCx.result}"]`); if(r) r.checked=true;
+    if(prevCx.result==="Positive"){ $("cxSpec").value=prevCx.specimen||"Blood"; $("cxOrg").value=prevCx.organism||""; } }
+  // decisions are for active courses only
+  [$("toDec").closest(".field"), $("toReasons").closest(".field"), $("cxRes").closest(".sec"), $("toAt").closest(".row2"), $("toNote").closest(".field"), $("daysField").closest(".row2")]
+    .forEach(x=>x.hidden=stopped);
+  $("toSave").hidden = stopped;
+  syncToForm();
+  const revs=c.reviews||[];
+  $("toHistory").hidden = !revs.length && !c.ack;
+  $("toHistory").innerHTML = (c.ack?`<div><b>Alert acknowledged</b> · ${fmt(c.ack.at)} · ${esc(c.ack.by)}</div>`:"") + revs.map(r=>`<div><b>${esc(r.decision)}</b> · ${fmt(r.at)} (${Math.round(r.hoursFromStart)} h)${r.fromDrug?` · ${esc(r.fromDrug)} → ${esc(r.toDrug)}`:""}${r.switchedTo?` → ${esc(r.switchedTo.join(", "))}${r.stoppedCurrent?"":" (added)"}`:""}${r.by?` · ${esc(r.by)}`:""}<br>${esc((r.reasons||[]).join("; "))}${r.culture?" · "+esc(cultureTxt(r.culture)):""}${r.note?` — ${esc(r.note)}`:""}</div>`).join("");
+  $("toScrim").hidden=false;
+}
 document.addEventListener("click", e=>{
   const b = e.target.closest("[data-to]"); if(!b) return;
-  const c = courses.find(x=>x.id===b.dataset.to); if(!c) return;
-  current = c.id; deleteArmed=false; $("toDelete").textContent="Delete entry"; $("toDelete").classList.remove("danger");
-  const h = (Date.now()-Date.parse(c.startedAt))/H;
-  $("toForm").reset(); $("toErr").textContent=""; fillReasons(null);
-  $("toTitle").textContent = `Bed ${c.bed}${c.codeName?" · "+c.codeName:""} · ${c.drug}`;
-  $("toSub").textContent = `Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${c.indication} · ${c.site}`;
-  $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3;
-  try{ $("toBy").value = localStorage.getItem("abxTimeout.lastBy")||""; }catch(_){}
-  const revs=c.reviews||[];
-  $("toHistory").hidden = !revs.length;
-  $("toHistory").innerHTML = revs.map(r=>`<div><b>${esc(r.decision)}</b> · ${fmt(r.at)} (${Math.round(r.hoursFromStart)} h)${r.fromDrug?` · ${esc(r.fromDrug)} → ${esc(r.toDrug)}`:""}${r.by?` · ${esc(r.by)}`:""}<br>${esc((r.reasons||[]).join("; "))}${r.note?` — ${esc(r.note)}`:""}</div>`).join("");
-  $("toScrim").hidden=false;
+  const c = courses.find(x=>x.id===b.dataset.to); if(c) openTimeout(c);
 });
 $("toCancel").onclick = ()=>{$("toScrim").hidden=true; current=null;};
+$("toEdit").onclick = ()=>{ const c=courses.find(x=>x.id===current); if(!c) return; $("toScrim").hidden=true; current=null; openAdd(c); };
 $("toDelete").onclick = async ()=>{
   if(!current) return;
   if(!deleteArmed){ deleteArmed=true; $("toDelete").textContent="Tap again to delete"; $("toDelete").classList.add("danger"); return; }
@@ -491,42 +649,75 @@ $("toDelete").onclick = async ()=>{
 $("toForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const c = courses.find(x=>x.id===current); if(!c) return;
+  const err = t => { $("toErr").textContent=t; };
   const decEl = document.querySelector('input[name="dec"]:checked');
-  if(!decEl) return $("toErr").textContent="Choose a decision.";
+  if(!decEl) return err("Choose a decision.");
   const dec = decEl.value;
   const reasons = [...document.querySelectorAll('input[name="rsn"]:checked')].map(x=>x.value);
-  if(!reasons.length) return $("toErr").textContent="Pick at least one reason.";
+  if(!reasons.length) return err("Pick at least one reason.");
+  const cxEl = document.querySelector('input[name="cx"]:checked');
+  if(!cxEl) return err("Choose the culture result.");
+  const culture = {result:cxEl.value};
+  if (cxEl.value==="Positive"){
+    culture.specimen=$("cxSpec").value; culture.organism=$("cxOrg").value.trim();
+    const sus=document.querySelector('input[name="sus"]:checked'); culture.sus = sus?sus.value:""; culture.susFor = c.drug;
+    if(!culture.organism) return err("Enter the organism.");
+    if(!culture.sus) return err(`Mark whether ${c.drug} is sensitive or resistant.`);
+  }
   const at = new Date($("toAt").value);
-  if(isNaN(at)) return $("toErr").textContent="Enter the time-out time.";
-  if(at.getTime() < Date.parse(c.startedAt)) return $("toErr").textContent="Time-out can't be before the start time.";
-  const changes = ["De-escalate","IV to oral","Escalate"].includes(dec);
-  const newDrug = $("toNewDrug").value.trim();
-  if(changes && !newDrug) return $("toErr").textContent="Enter the new antibiotic.";
+  if(isNaN(at)) return err("Enter the time-out time.");
+  if(at.getTime() < Date.parse(c.startedAt)) return err("Time-out can't be before the start time.");
+  if(at.getTime() > Date.now()+5*60e3) return err("Time-out can't be in the future.");
+  const sw = SWITCH.includes(dec), stopCur = sw && $("swStop").checked;
   const days = parseInt($("toDays").value,10);
-  if(dec!=="Stop" && !(days>=1 && days<=14)) return $("toErr").textContent="Review interval must be 1–14 days.";
-  const rev = { at:at.toISOString(), decision:dec, reasons, note:$("toNote").value.trim(), by:$("toBy").value.trim(),
+  if(dec!=="Stop" && !(days>=1 && days<=14)) return err("Review interval must be 1–14 days.");
+  let newOnes=[];
+  if (sw){
+    const rows=[...$("swRows").querySelectorAll(".swrow")].map(r=>({drug:r.querySelector(".swDrug").value.trim(), rationale:r.querySelector(".swRat").value.trim()})).filter(r=>r.drug||r.rationale);
+    if(!rows.length) return err("Enter the new antibiotic.");
+    if(rows.some(r=>!r.drug)) return err("Enter the name of each new antibiotic.");
+    if(rows.some(r=>!r.rationale)) return err("Enter the rationale for each new antibiotic.");
+    newOnes=rows;
+  }
+  const swPlanV=$("swPlan").value.trim(), swPlan = swPlanV?parseInt(swPlanV,10):null;
+  if(swPlanV && !(swPlan>=1&&swPlan<=42)) return err("Planned duration must be 1–42 days.");
+  const toPlanV=$("toPlan").value.trim(), toPlan = toPlanV?parseInt(toPlanV,10):null;
+  if(dec==="Continue" && toPlanV && !(toPlan>=1&&toPlan<=42)) return err("Planned duration must be 1–42 days.");
+  const by=$("toBy").value.trim(); setLastBy(by);
+  const rev = { at:at.toISOString(), decision:dec, reasons, note:$("toNote").value.trim(), by, culture,
     hoursFromStart:(at-Date.parse(c.startedAt))/H };
-  const patch = {};
-  if(changes){ rev.fromDrug=c.drug; rev.toDrug=newDrug; patch.drug=newDrug; patch.aware=aware(newDrug); }
-  if(dec==="Stop"){ patch.status="stopped"; patch.stoppedAt=at.toISOString(); }
-  else rev.nextDue = new Date(at.getTime()+days*24*H).toISOString();
+  const patch = { culture };
+  if (sw){ rev.switchedTo = newOnes.map(r=>r.drug); rev.stoppedCurrent = stopCur; }
+  if (dec==="Stop" || stopCur){ patch.status="stopped"; patch.stoppedAt=at.toISOString(); }
+  else rev.nextDue = new Date(at.getTime()+days*D).toISOString();
+  if (dec==="Continue") patch.plannedDays = toPlan;
   patch.reviews = [...(c.reviews||[]), rev];
   $("toSave").disabled=true;
-  try{ await db.doc("courses/"+c.id).update(patch); $("toScrim").hidden=true; current=null; }
-  catch(err){ $("toErr").textContent = saveError(err); }
+  try{
+    await db.doc("courses/"+c.id).update(patch);
+    for (const r of newOnes){
+      await db.collection("courses").add({ bed:c.bed, codeName:c.codeName, drug:r.drug, aware:aware(r.drug), indication:$("swInd").value,
+        site:c.site, rationale:r.rationale, plannedDays:swPlan, cultureSent:c.cultureSent, startedAt:at.toISOString(), by,
+        status:"active", reviews:[], createdAt:new Date().toISOString(), culture,
+        linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, reviewDueAt:new Date(at.getTime()+days*D).toISOString() });
+    }
+    $("toScrim").hidden=true; current=null;
+  }
+  catch(er){ err(saveError(er)); }
   finally{ $("toSave").disabled=false; }
 });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ ["addScrim","toScrim","ackScrim","pdfScrim"].forEach(i=>$(i).hidden=true); current=null; ackId=null; } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ SCRIMS.forEach(i=>$(i).hidden=true); current=null; ackId=null; editId=null; } });
 
-/* acknowledge */
+/* ---------- acknowledge ---------- */
 let ackId=null;
 document.addEventListener("click", e=>{
   const b = e.target.closest("[data-ack]"); if(!b) return;
   const c = courses.find(x=>x.id===b.dataset.ack); if(!c) return;
   ackId=c.id; $("ackForm").reset(); $("ackErr").textContent="";
   const h=(Date.now()-Date.parse(c.startedAt))/H;
-  $("ackSub").textContent = `Bed ${c.bed}${c.codeName?" · "+c.codeName:""} · ${c.drug} · empirical · ${Math.floor(h)} h on therapy · no time-out yet`;
-  try{ $("ackBy").value = localStorage.getItem("abxTimeout.lastBy")||""; }catch(_){}
+  $("ackTitle").textContent = isProph(c) ? "Acknowledge 24 h prophylaxis alert" : "Acknowledge 72 h alert";
+  $("ackSub").textContent = `${who(c)} · ${c.drug} · ${c.indication.toLowerCase()} · ${Math.floor(h)} h on therapy · no time-out yet`;
+  $("ackBy").value = lastBy();
   $("ackScrim").hidden=false; $("ackBy").focus();
 });
 $("ackCancel").onclick=()=>{ $("ackScrim").hidden=true; ackId=null; };
@@ -534,17 +725,63 @@ $("ackForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const by=$("ackBy").value.trim();
   if(!by) return $("ackErr").textContent="Enter your initials.";
-  try{ localStorage.setItem("abxTimeout.lastBy", by); }catch(_){}
+  setLastBy(by);
   try{ await db.doc("courses/"+ackId).update({ack:{by, at:new Date().toISOString()}}); $("ackScrim").hidden=true; ackId=null; }
   catch(err){ $("ackErr").textContent=saveError(err); }
 });
 
-/* PDF export */
+/* ---------- backup & restore ---------- */
+const BK="abxTimeout.lastBackup";
+const lastBackup = () => { try{ return parseInt(localStorage.getItem(BK)||"0",10)||0; }catch(_){ return 0; } };
+function backupNudge(){
+  const real = courses.filter(c=>!c.demo).length, lb = lastBackup();
+  const stale = real && (!lb || Date.now()-lb > 7*D);
+  $("backupBanner").hidden = !stale;
+  if (stale) $("backupText").textContent = lb ? `Last backup ${fdate(lb)} — over a week ago.` : "No backup yet. Data is only on this phone.";
+}
+function openData(){
+  const lb=lastBackup(), n=courses.filter(c=>!c.demo).length;
+  $("dataLast").textContent = `${n} course${n===1?"":"s"} on this phone · Last backup: ${lb?fmt(new Date(lb).toISOString()):"never"}`;
+  $("dataErr").textContent=""; $("dataScrim").hidden=false;
+}
+$("dataBtn").onclick=openData; $("backupNow").onclick=openData;
+$("dataClose").onclick=()=>{ $("dataScrim").hidden=true; };
+$("doBackup").onclick=()=>{
+  const now=new Date(), name=`AntibioticTimeout-backup_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.json`;
+  const text=JSON.stringify({app:"antibiotic-timeout", format:1, exportedAt:now.toISOString(), courses:db.exportAll()}, null, 1);
+  if (window.AndroidApp && AndroidApp.saveFile){ AndroidApp.saveFile(name, text); return; }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"application/json"})); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},5e3);
+  window.__abxSaved(true);
+};
+window.__abxSaved = ok=>{
+  if(ok){ try{ localStorage.setItem(BK, String(Date.now())); }catch(_){} $("dataScrim").hidden=true; showNotice("Backup saved."); render(); }
+  else $("dataErr").textContent="Backup was not saved.";
+};
+$("doRestore").onclick=()=>{
+  if (window.AndroidApp && AndroidApp.openFile){ AndroidApp.openFile(); return; }
+  $("restoreFile").value=""; $("restoreFile").click();
+};
+$("restoreFile").addEventListener("change", ()=>{
+  const f=$("restoreFile").files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>window.__abxOpened(String(r.result)); r.readAsText(f);
+});
+window.__abxOpened = text=>{
+  let obj; try{ obj=JSON.parse(text); }catch(_){ $("dataErr").textContent="That file is not an Antibiotic Time-out backup."; return; }
+  if(!obj || obj.app!=="antibiotic-timeout" || typeof obj.courses!=="object"){ $("dataErr").textContent="That file is not an Antibiotic Time-out backup."; return; }
+  try{
+    const res=db.importAll(obj.courses);
+    $("dataScrim").hidden=true;
+    showNotice(`Restored from backup of ${fmt(obj.exportedAt)}: ${res.added} added, ${res.updated} updated, ${res.kept} already up to date.`);
+  }catch(er){ $("dataErr").textContent=saveError(er); }
+};
+
+/* ---------- PDF export ---------- */
 const dIn = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 function setRange(days){
   const to=new Date(); let from;
   if(days==="all"){ const t=courses.map(c=>Date.parse(c.startedAt)).filter(x=>!isNaN(x)); from=new Date(t.length?Math.min(...t):Date.now()); }
-  else from=new Date(Date.now()-(+days-1)*24*H);
+  else from=new Date(Date.now()-(+days-1)*D);
   $("pdfFrom").value=dIn(from); $("pdfTo").value=dIn(to);
 }
 $("pdfBtn").onclick=()=>{ setRange(30); $("pdfErr").textContent=""; $("pdfScrim").hidden=false; };
@@ -574,74 +811,94 @@ function buildReport(list, from, to){
   const fh=x=>x==null?"–":(Math.round(x*10)/10)+" h", fd=x=>x==null?"–":(Math.round(x*10)/10)+" d";
   const dd=iso=>{ const d=new Date(iso); return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"2-digit"})+" "+pad(d.getHours())+":"+pad(d.getMinutes()); };
   const n=list.length;
+  const orig=list.filter(c=>!isLinked(c)), linked=list.filter(isLinked);
   const emp=list.filter(c=>c.indication==="Empirical");
-  const cult=list.filter(c=>c.cultureSent).length;
-  const firstH=list.map(c=>{const r=(c.reviews||[])[0]; return r?(Date.parse(r.at)-Date.parse(c.startedAt))/H:null;});
-  const eligible=list.filter((c,i)=>firstH[i]!=null || c.status==="stopped" || now-Date.parse(c.startedAt)>72*H);
-  const onTime=list.filter((c,i)=>firstH[i]!=null && firstH[i]<=72).length;
-  const reviewed=firstH.filter(x=>x!=null);
-  const empAlert=emp.filter(c=>{const r=(c.reviews||[])[0]; const s=Date.parse(c.startedAt); return c.ack || (r? Date.parse(r.at)-s>=72*H : now-s>=72*H);});
-  const acked=empAlert.filter(c=>c.ack);
-  const ackDelay=acked.map(c=>(Date.parse(c.ack.at)-Date.parse(c.startedAt))/H-72);
-  const firstDec={}; list.forEach(c=>{const r=(c.reviews||[])[0]; if(r) firstDec[r.decision]=(firstDec[r.decision]||0)+1;});
-  const allDec={}; list.forEach(c=>(c.reviews||[]).forEach(r=>allDec[r.decision]=(allDec[r.decision]||0)+1));
+  const cult=orig.filter(c=>c.cultureSent).length;
+  const firstH=c=>{const r=(c.reviews||[])[0]; return r?(Date.parse(r.at)-Date.parse(c.startedAt))/H:null;};
+  const elig=orig.filter(c=>firstH(c)!=null || c.status==="stopped" || now-Date.parse(c.startedAt)>deadlineH(c)*H);
+  const onTime=elig.filter(c=>{const s=Date.parse(c.startedAt), lim=deadlineH(c)*H, r=(c.reviews||[])[0];
+    return r ? Date.parse(r.at)-s<=lim : (c.status==="stopped" && Date.parse(c.stoppedAt)-s<=lim);}).length;
+  const reviewed=orig.map(firstH).filter(x=>x!=null);
+  const alertable=orig.filter(c=>c.indication==="Empirical"||isProph(c)).filter(c=>{const s=Date.parse(c.startedAt), lim=deadlineH(c)*H, r=(c.reviews||[])[0];
+    if(c.ack) return true; if(r) return Date.parse(r.at)-s>=lim; if(c.status==="stopped") return Date.parse(c.stoppedAt)-s>=lim; return now-s>=lim;});
+  const acked=alertable.filter(c=>c.ack);
+  const proph=list.filter(isProph);
+  const prophLong=proph.filter(c=>((c.status==="stopped"?Date.parse(c.stoppedAt):now)-Date.parse(c.startedAt))>24*H);
+  const firsts=orig.map(c=>(c.reviews||[])[0]).filter(Boolean);
+  const withCx=firsts.filter(r=>r.culture && r.culture.result!=="Pending" && r.culture.result!=="Not sent");
+  const pos=firsts.filter(r=>r.culture&&r.culture.result==="Positive");
+  const neg=firsts.filter(r=>r.culture&&r.culture.result==="No growth");
+  const posDe=pos.filter(r=>r.decision==="De-escalate"||r.decision==="IV to oral"||r.decision==="Stop").length;
+  const negOff=neg.filter(r=>r.decision==="Stop"||r.decision==="De-escalate").length;
+  const planned=list.filter(c=>c.plannedDays);
+  const overran=planned.filter(c=>{const ps=plannedStop(c); return (c.status==="stopped"?Date.parse(c.stoppedAt):now) > ps+12*H;});
   const stopped=list.filter(c=>c.status==="stopped");
-  const dot=stopped.map(c=>(Date.parse(c.stoppedAt)-Date.parse(c.startedAt))/(24*H));
-  const count=(k)=>{const m={}; list.forEach(c=>{const v=k(c); m[v]=(m[v]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
-  const awCount=count(c=>AW_LABEL[aware(c.drug)]);
-  const indCount=count(c=>c.indication);
-  const srcCount=count(c=>c.site);
-  const drugCount=count(c=>c.drug).slice(0,10);
+  const dot=stopped.map(c=>(Date.parse(c.stoppedAt)-Date.parse(c.startedAt))/D);
+  const allRevs=list.flatMap(c=>c.reviews||[]);
+  const switches=allRevs.filter(r=>SWITCH.includes(r.decision)).length;
+  const firstDec={}; firsts.forEach(r=>firstDec[r.decision]=(firstDec[r.decision]||0)+1);
+  const allDec={}; allRevs.forEach(r=>allDec[r.decision]=(allDec[r.decision]||0)+1);
+  const count=(arr,k)=>{const m={}; arr.forEach(c=>{const v=k(c); if(v) m[v]=(m[v]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
+  const orgs={}; list.forEach(c=>{ const seen=new Set(); (c.reviews||[]).forEach(r=>{ if(r.culture&&r.culture.result==="Positive"&&r.culture.organism) seen.add(r.culture.organism); }); seen.forEach(o=>orgs[o]=(orgs[o]||0)+1); });
   const tbl=(title,rows,total)=>`<div class="box"><h3>${esc(title)}</h3><table class="mini"><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="r">${v}</td><td class="r m">${pct(v,total)}</td></tr>`).join("")||'<tr><td class="m">None</td></tr>'}</tbody></table></div>`;
   const kpis=[
-    ["Courses started", n, ""],
+    ["Courses started", n, `${orig.length} new · ${linked.length} after a switch`],
     ["Empirical", emp.length, pct(emp.length,n)+" of courses"],
-    ["Cultures before 1st dose", pct(cult,n), cult+" of "+n],
-    ["Time-out done ≤ 72 h", pct(onTime,eligible.length), onTime+" of "+eligible.length+" due"],
+    ["Cultures before 1st dose", pct(cult,orig.length), cult+" of "+orig.length+" new courses"],
+    ["Time-out on time", pct(onTime,elig.length), onTime+" of "+elig.length+" · 72 h (24 h prophylaxis)"],
     ["Median time to 1st time-out", fh(median(reviewed)), reviewed.length+" reviewed"],
-    ["Empirical 72 h alerts acknowledged", pct(acked.length,empAlert.length), acked.length+" of "+empAlert.length+(ackDelay.length?" · median "+fh(median(ackDelay))+" after 72 h":"")],
-    ["De-escalated at 1st time-out", pct(firstDec["De-escalate"]||0,reviewed.length), (firstDec["De-escalate"]||0)+" of "+reviewed.length],
-    ["Median duration (stopped)", fd(median(dot)), stopped.length+" stopped"]
+    ["Alerts acknowledged", pct(acked.length,alertable.length), acked.length+" of "+alertable.length+" empirical / prophylaxis alerts"],
+    ["Prophylaxis beyond 24 h", pct(prophLong.length,proph.length), prophLong.length+" of "+proph.length+" prophylaxis courses"],
+    ["Culture positive at 1st time-out", pct(pos.length,withCx.length), pos.length+" of "+withCx.length+" with a final result"],
+    ["Narrowed or stopped, culture positive", pct(posDe,pos.length), posDe+" of "+pos.length+" positive"],
+    ["Stopped or de-escalated, no growth", pct(negOff,neg.length), negOff+" of "+neg.length+" no growth"],
+    ["Ran past planned stop", pct(overran.length,planned.length), overran.length+" of "+planned.length+" with a planned duration"],
+    ["Median duration (stopped)", fd(median(dot)), stopped.length+" stopped · "+switches+" switches"]
   ];
-  const rows=list.map((c,i)=>{
+  const rows=list.map(c=>{
     const revs=c.reviews||[];
     const drugs=[...new Set([...revs.map(r=>r.fromDrug).filter(Boolean), c.drug])].join(" → ");
-    const fH=firstH[i];
-    const dur=c.status==="stopped"?(Date.parse(c.stoppedAt)-Date.parse(c.startedAt))/(24*H):(now-Date.parse(c.startedAt))/(24*H);
-    return `<tr><td class="b">${esc(c.bed)}</td><td>${esc(c.codeName||"–")}</td><td class="n">${dd(c.startedAt)}</td><td>${esc(drugs)}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
-      <td>${esc(c.indication)}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Yes":"No"}</td>
-      <td class="n${fH!=null&&fH>72?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${revs.map(r=>esc(r.decision)).join(" → ")||"–"}</td>
-      <td>${c.ack?esc(c.ack.by)+" · "+dd(c.ack.at):(c.indication==="Empirical"?"–":"n/a")}</td>
+    const fH=firstH(c), lim=deadlineH(c);
+    const dur=((c.status==="stopped"?Date.parse(c.stoppedAt):now)-Date.parse(c.startedAt))/D;
+    const cx=[...revs].reverse().map(r=>r.culture).find(Boolean) || c.culture;
+    const cxT = !cx ? "–" : cx.result==="Positive" ? `${esc(cx.organism)} (${esc(cx.specimen)})${cx.sus&&(!cx.susFor||cx.susFor===c.drug)?" · "+esc(cx.sus[0]):""}` : esc(cx.result);
+    const ps=plannedStop(c), over = ps && (c.status==="stopped"?Date.parse(c.stoppedAt):now) > ps+12*H;
+    const dec = revs.map(r=>esc(r.decision)+(r.switchedTo?" → "+esc(r.switchedTo.join(", ")):"")).join("; ")||"–";
+    return `<tr><td class="b">${esc(c.bed)}</td><td>${esc(c.codeName||"–")}</td><td class="n">${dd(c.startedAt)}</td>
+      <td>${esc(drugs)}${isLinked(c)?`<div class="sm">from ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
+      <td>${esc(c.indication.replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
+      <td>${cxT}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
+      <td>${c.ack?esc(c.ack.by)+" "+dd(c.ack.at):"–"}</td><td class="n${over?" late":""}">${c.plannedDays?c.plannedDays+" d":"–"}</td>
       <td>${c.status==="stopped"?"Stopped "+dd(c.stoppedAt):"Active"}</td><td class="n">${dur.toFixed(1)}</td></tr>`;
   }).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>Antibiotic Time-out Report</title><style>
-  @page{size:A4 landscape;margin:12mm}
-  *{box-sizing:border-box} body{font-family:"IBM Plex Sans",Arial,sans-serif;color:#15201D;font-size:10.5px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1F5D4C;padding-bottom:8px;margin-bottom:12px}
+  @page{size:A4 landscape;margin:10mm}
+  *{box-sizing:border-box} body{font-family:"IBM Plex Sans",Arial,sans-serif;color:#15201D;font-size:10px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1F5D4C;padding-bottom:8px;margin-bottom:10px}
   .eb{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#56665F;font-weight:600}
-  h1{font-size:21px;margin:2px 0 0;color:#1F5D4C} h2{font-size:13px;margin:16px 0 6px;color:#1F5D4C} h3{font-size:10.5px;margin:0 0 5px;text-transform:uppercase;letter-spacing:.06em;color:#56665F}
-  .meta{color:#56665F;text-align:right;font-size:10px;line-height:1.5}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  .kpi{border:1px solid #D3DDDA;border-radius:6px;padding:8px 10px;break-inside:avoid}
-  .kpi .v{font-size:20px;font-weight:700;color:#1F5D4C;line-height:1.1} .kpi .l{font-weight:600;font-size:10px} .kpi .s{color:#56665F;font-size:9.5px}
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
-  .box{border:1px solid #D3DDDA;border-radius:6px;padding:8px 10px;break-inside:avoid}
+  h1{font-size:20px;margin:2px 0 0;color:#1F5D4C} h2{font-size:12.5px;margin:14px 0 6px;color:#1F5D4C} h3{font-size:9.5px;margin:0 0 5px;text-transform:uppercase;letter-spacing:.06em;color:#56665F}
+  .meta{color:#56665F;text-align:right;font-size:9.5px;line-height:1.5}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .kpi{border:1px solid #D3DDDA;border-radius:6px;padding:7px 8px;break-inside:avoid}
+  .kpi .v{font-size:18px;font-weight:700;color:#1F5D4C;line-height:1.1} .kpi .l{font-weight:600;font-size:9.5px;line-height:1.25} .kpi .s{color:#56665F;font-size:8.5px;margin-top:2px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+  .box{border:1px solid #D3DDDA;border-radius:6px;padding:7px 9px;break-inside:avoid}
   table{border-collapse:collapse;width:100%} .mini td{padding:2px 0;border-bottom:1px dotted #D3DDDA} .mini tr:last-child td{border:0}
   .r{text-align:right} .m{color:#56665F;padding-left:6px}
-  .list th{background:#1F5D4C;color:#fff;text-align:left;font-size:9px;letter-spacing:.04em;text-transform:uppercase;padding:5px 5px}
-  .list td{padding:4px 5px;border-bottom:1px solid #E3E9E7;vertical-align:top} .list tr:nth-child(even) td{background:#F5F8F7}
+  .list{font-size:8.6px} .list th{background:#1F5D4C;color:#fff;text-align:left;font-size:7.8px;letter-spacing:.03em;text-transform:uppercase;padding:4px 4px}
+  .list td{padding:3px 4px;border-bottom:1px solid #E3E9E7;vertical-align:top} .list tr:nth-child(even) td{background:#F5F8F7}
   .list thead{display:table-header-group} .list tr{break-inside:avoid}
-  .b{font-weight:700} .n{white-space:nowrap;font-variant-numeric:tabular-nums} .c{text-align:center} .late{color:#B42318;font-weight:700}
-  footer{margin-top:12px;color:#56665F;font-size:9px;border-top:1px solid #D3DDDA;padding-top:6px}
+  .b{font-weight:700} .n{white-space:nowrap;font-variant-numeric:tabular-nums} .c{text-align:center} .late{color:#B42318;font-weight:700} .sm{color:#56665F;font-size:8px}
+  footer{margin-top:10px;color:#56665F;font-size:8.5px;border-top:1px solid #D3DDDA;padding-top:6px}
   </style></head><body>
   <header><div><div class="eb">Antimicrobial stewardship · ICU</div><h1>Antibiotic Time-out Report</h1></div>
   <div class="meta"><b>Period:</b> ${from.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} – ${to.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}<br><b>Generated:</b> ${dd(new Date().toISOString())}</div></header>
   <div class="kpis">${kpis.map(([l,v,s2])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${esc(l)}</div><div class="s">${esc(s2)}</div></div>`).join("")}</div>
-  <div class="grid">${tbl("AWaRe category",awCount,n)}${tbl("Indication",indCount,n)}${tbl("Suspected source",srcCount,n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),reviewed.length)}</div>
-  <div class="grid" style="grid-template-columns:1fr 1fr">${tbl("Most used antibiotics (top 10)",drugCount,n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),Object.values(allDec).reduce((a,b)=>a+b,0))}</div>
+  <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n)}${tbl("Indication",count(list,c=>c.indication),n)}${tbl("Suspected source",count(list,c=>c.site),n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
+  <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Organisms isolated",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${n} courses)</h2>
-  <table class="list"><thead><tr><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic(s)</th><th>AWaRe</th><th>Indication</th><th>Source</th><th>Cx</th><th>1st T/O</th><th>Decisions</th><th>72 h ack</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
-  <footer>Time-out ≤ 72 h is counted among courses whose 72 h mark has passed, that were stopped, or that were reviewed. "Days" is days on therapy to stop, or to report time if active. Cx = cultures sent before the first dose. Patients are identified by bed number and code name only.</footer>
+  <table class="list"><thead><tr><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
+  <footer>Each antibiotic is one row; a switch at time-out stops the old row and starts a new row marked "from …". Time-out on time = first time-out (or stop) within 72 h, or 24 h for prophylaxis, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.</footer>
   </body></html>`;
 }
 
@@ -653,14 +910,13 @@ $("clearDemo").onclick = async ()=>{
 };
 
 function saveError(err){
-  const code = err && err.code;
-  if(err && err.name==="QuotaExceededError") return "Storage is full. Delete old stopped courses, then try again.";
-  return "Couldn't save just now. Check your connection and try again.";
+  if(err && err.name==="QuotaExceededError") return "Storage is full. Back up, then delete old stopped courses.";
+  return "Couldn't save just now. Please try again.";
 }
-function showNotice(t){ $("notice").textContent=t; $("notice").hidden=false; }
+function showNotice(t){ $("notice").textContent=t; $("notice").hidden=false; clearTimeout(showNotice.t); showNotice.t=setTimeout(()=>{$("notice").hidden=true;},8000); }
 
-// minute tick: refresh times unless a form is open
-setInterval(()=>{ if(["addScrim","toScrim","ackScrim","pdfScrim"].every(i=>$(i).hidden)) render(); }, 30e3);
+// refresh times unless a form is open
+setInterval(()=>{ if(SCRIMS.every(i=>$(i).hidden)) render(); }, 30e3);
 
 render();
 (function(){
@@ -669,17 +925,29 @@ render();
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){ return {}; } }
   function save(m){ localStorage.setItem(KEY, JSON.stringify(m)); emit(); }
   function emit(){ const m=load(); const snap={docs:Object.keys(m).map(id=>({id, data:()=>m[id]}))}; listeners.forEach(f=>f(snap)); }
+  const stamp = d => d.updatedAt || d.createdAt || d.startedAt || "";
   const ok = (()=>{ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } })();
   if(!ok){ $("addBtn").disabled=true; showNotice("This browser is blocking storage (private mode?). Open in a normal window to log antibiotics."); return; }
   db = {
     collection:()=>({
-      add: async data=>{ const m=load(); const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7); m[id]=data; save(m); return {id}; },
+      add: async data=>{ const m=load(); const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7); data.updatedAt=new Date().toISOString(); m[id]=data; save(m); return {id}; },
       onSnapshot: cb=>{ listeners.push(cb); emit(); }
     }),
     doc: path=>{ const id=path.split("/")[1]; return {
-      update: async patch=>{ const m=load(); if(!m[id]) throw {code:"not_found"}; Object.assign(m[id],patch); save(m); },
+      update: async patch=>{ const m=load(); if(!m[id]) throw {code:"not_found"}; Object.assign(m[id],patch,{updatedAt:new Date().toISOString()}); save(m); },
       delete: async ()=>{ const m=load(); delete m[id]; save(m); }
-    }; }
+    }; },
+    exportAll: ()=>load(),
+    importAll: incoming=>{
+      const m=load(); let added=0, updated=0, kept=0;
+      Object.keys(incoming).forEach(id=>{
+        const d=incoming[id]; if(!d || typeof d!=="object" || !d.startedAt) return;
+        if(!m[id]){ m[id]=d; added++; }
+        else if(stamp(d) > stamp(m[id])){ m[id]=d; updated++; }
+        else kept++;
+      });
+      save(m); return {added, updated, kept};
+    }
   };
   window.addEventListener("storage", e=>{ if(e.key===KEY) emit(); });
   db.collection("courses").onSnapshot(snap=>{

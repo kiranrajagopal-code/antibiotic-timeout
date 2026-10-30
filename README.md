@@ -2,23 +2,23 @@
 
 # ICU Antibiotic Time-out
 
-A simple web app for antimicrobial stewardship in the ICU. It tracks every antibiotic course from its start and flags the 48–72 hour time-out review.
-
-**Live app:** https://kiranrajagopal-code.github.io/antibiotic-timeout/
+An Android app for antimicrobial stewardship in the ICU. It tracks every antibiotic course from its start and flags the 72-hour time-out review (24 hours for prophylaxis).
 
 ## What it does
-- Log each antibiotic: bed number, code name, start time, indication, suspected source, cultures sent before first dose
-- Time-out clock: due at 48 h, overdue after 72 h
-- Record the decision: continue, de-escalate, IV to oral, escalate or stop, with reasons
-- Dashboard: overdue, due now, active courses, and % of time-outs done by 72 h (last 30 days)
-- WHO AWaRe category tag for each antibiotic (Access / Watch / Reserve)
-- Empirical courses with no time-out turn purple and flash at 72 h until someone acknowledges them
-- Phone notification at 72 h for any course without a time-out (works with the app closed and after restart)
-- Export a PDF report for any date range: summary indicators (time-out ≤ 72 h, cultures before first dose, de-escalation, acknowledgement of 72 h alerts, duration) and a full line listing
-- Works on phone and desktop, light and dark mode
+- Log each antibiotic: bed number, code name, start time, indication (empirical / targeted / prophylaxis), rationale, suspected source, planned duration, cultures sent before first dose
+- Single time-out deadline: 72 h, or 24 h for prophylaxis
+- Record the decision at time-out: continue, de-escalate, IV to oral, escalate or stop, with reasons and the culture result (organism, specimen, sensitive/resistant)
+- Switch antibiotics in the same window: stop the current antibiotic and start one or more new ones, each linked to the old record
+- Empirical courses at 72 h and prophylaxis at 24 h without a time-out turn purple and flash until someone acknowledges them
+- Flags courses running past their planned stop date
+- Phone notifications for time-outs, reviews and planned stop dates (works with the app closed and after restart)
+- Edit any entry without losing its history
+- Backup to a file (Drive, WhatsApp, email) and restore by merging
+- Export a PDF report for any date range: 12 indicators, breakdowns (AWaRe, indication, source, organisms, rationale, decisions) and a full line listing
+- WHO AWaRe category tag for each antibiotic
 
 ## Data and privacy
-- Data is saved in the browser of the device being used. It is not sent anywhere and is not shared between devices.
+- Data is saved on the phone only. It is not sent anywhere and is not shared between devices. Use Backup regularly.
 - Identify patients by bed number and a code name only. Never enter real names or IP numbers.
 
 This tool supports, and does not replace, the hospital antibiotic policy.

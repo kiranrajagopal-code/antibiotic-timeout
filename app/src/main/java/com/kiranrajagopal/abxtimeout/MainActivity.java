@@ -15,9 +15,19 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+
 public class MainActivity extends Activity {
     private WebView web;
     private WebView printView; // kept alive until printing finishes
+    private String pendingSave;
+    private static final int REQ_SAVE = 11, REQ_OPEN = 12;
 
     /** Called from the page: render report HTML and open Android's print / Save as PDF dialog. */
     public class Bridge {
@@ -29,6 +39,30 @@ public class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT >= 33)
                 return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
             return true;
+        }
+
+        /** Backup: let the user choose where to save (Drive, Downloads, etc.). */
+        @JavascriptInterface
+        public void saveFile(final String name, final String text) {
+            runOnUiThread(() -> {
+                pendingSave = text;
+                Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("application/json");
+                i.putExtra(Intent.EXTRA_TITLE, name);
+                try { startActivityForResult(i, REQ_SAVE); } catch (Exception e) { js("window.__abxSaved&&__abxSaved(false)"); }
+            });
+        }
+
+        /** Restore: let the user pick a backup file. */
+        @JavascriptInterface
+        public void openFile() {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("*/*");
+                try { startActivityForResult(i, REQ_OPEN); } catch (Exception ignored) {}
+            });
         }
 
         @JavascriptInterface
@@ -79,6 +113,35 @@ public class MainActivity extends Activity {
         setContentView(web);
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl("file:///android_asset/index.html");
+    }
+
+    private void js(String code) { web.post(() -> web.evaluateJavascript(code, null)); }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        Uri uri = (res == RESULT_OK && data != null) ? data.getData() : null;
+        if (req == REQ_SAVE) {
+            boolean ok = false;
+            if (uri != null && pendingSave != null) {
+                try (OutputStream os = getContentResolver().openOutputStream(uri, "wt")) {
+                    os.write(pendingSave.getBytes(StandardCharsets.UTF_8));
+                    ok = true;
+                } catch (Exception ignored) {}
+            }
+            pendingSave = null;
+            if (uri != null) js("window.__abxSaved&&__abxSaved(" + ok + ")");
+        } else if (req == REQ_OPEN && uri != null) {
+            try (InputStream is = getContentResolver().openInputStream(uri);
+                 BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                char[] buf = new char[8192]; int n;
+                while ((n = br.read(buf)) > 0) sb.append(buf, 0, n);
+                js("window.__abxOpened&&__abxOpened(" + JSONObject.quote(sb.toString()) + ")");
+            } catch (Exception e) {
+                js("window.__abxOpened&&__abxOpened('')");
+            }
+        }
     }
 
     @Override
