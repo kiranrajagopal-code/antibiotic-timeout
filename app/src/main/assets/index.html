@@ -291,6 +291,10 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
   <form class="sheet" id="addForm" novalidate>
     <div><h2 id="addTitle">Start antibiotic</h2><div class="sub" id="addSub">Log each antibiotic separately. Time-out is due by 72 h (24 h for prophylaxis).</div></div>
     <div class="row2">
+      <div class="field"><label for="fIcu">ICU</label><select id="fIcu"><option>CCU</option><option>NSICU</option><option value="Other">Other (specify)</option></select></div>
+      <div class="field" id="fIcuOtherF" hidden><label for="fIcuOther">ICU name</label><input type="text" id="fIcuOther" maxlength="30" autocomplete="off" placeholder="e.g. MICU"></div>
+    </div>
+    <div class="row2">
       <div class="field"><label for="fBed">Bed no.</label><input type="text" id="fBed" maxlength="12" autocomplete="off" placeholder="e.g. 7"></div>
       <div class="field"><label for="fCode">Code name</label><input type="text" id="fCode" maxlength="20" autocomplete="off" placeholder="e.g. Falcon"></div>
     </div>
@@ -344,6 +348,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
 <div class="scrim" id="pdfScrim" hidden>
   <form class="sheet" id="pdfForm" novalidate>
     <div><h2>Export PDF report</h2><div class="sub">Courses started in this period, with summary indicators and a full line listing.</div></div>
+    <div class="field"><label for="pdfIcu">ICU</label><select id="pdfIcu"></select></div>
     <div class="row2">
       <div class="field"><label for="pdfFrom">From</label><input type="date" id="pdfFrom"></div>
       <div class="field"><label for="pdfTo">To</label><input type="date" id="pdfTo"></div>
@@ -494,7 +499,10 @@ const toLocalInput = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.get
 const fmt = iso => { const d=new Date(iso); return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+" "+pad(d.getHours())+":"+pad(d.getMinutes()); };
 const fdate = t => new Date(t).toLocaleDateString("en-IN",{day:"numeric",month:"short"});
 const hrsTxt = h => h<1 ? "<1 h" : h<48 ? Math.floor(h)+" h" : Math.floor(h/24)+" d "+Math.floor(h%24)+" h";
-const who = c => `Bed ${c.bed}${c.codeName?" · "+c.codeName:""}`;
+const icuName = c => c.icu==="Other" ? (c.icuOther||"ICU") : (c.icu||"");
+const who = c => `${icuName(c)?icuName(c)+" · ":""}Bed ${c.bed}${c.codeName?" · "+c.codeName:""}`;
+const lastIcu = () => { try{ return JSON.parse(localStorage.getItem("abxTimeout.lastIcu")||"null"); }catch(_){ return null; } };
+const setLastIcu = v => { try{ localStorage.setItem("abxTimeout.lastIcu", JSON.stringify(v)); }catch(_){} };
 const lastBy = () => { try{ return localStorage.getItem("abxTimeout.lastBy")||""; }catch(_){ return ""; } };
 const setLastBy = v => { try{ if(v) localStorage.setItem("abxTimeout.lastBy", v); }catch(_){} };
 
@@ -579,7 +587,7 @@ function cultureTxt(cx){
 }
 
 const matchQ = c => { const q=($("q").value||"").trim().toLowerCase(); if(!q) return true;
-  return [c.bed,c.codeName,c.drug,c.linkedFromDrug].some(v=>String(v||"").toLowerCase().includes(q)); };
+  return [c.bed,c.codeName,c.drug,c.linkedFromDrug,icuName(c)].some(v=>String(v||"").toLowerCase().includes(q)); };
 function render(){
   const now = Date.now();
   syncAlarms(); stats(now); backupNudge(); sysNudge();
@@ -608,7 +616,7 @@ function render(){
       const ackTxt = c.ack ? `<div class="meta ackline">${isProph(c)?"24":"72"} h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
       return `<article class="course ${st.s==="overdue"?"overdue":"pending"}${st.pastStop?" paststop":""}${al?" alert":""}">
         ${al?`<div class="alerttag"><span>${tag}</span><button class="btn" type="button" data-ack="${esc(c.id)}">Acknowledge</button></div>`:""}
-        <button class="bed" type="button" data-edit="${esc(c.id)}" aria-label="Edit details for bed ${esc(c.bed)}"><svg class="pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span class="k">Bed</span><span class="v">${esc(c.bed)}</span>${c.codeName?`<span class="code">${esc(c.codeName)}</span>`:""}</button>
+        <button class="bed" type="button" data-edit="${esc(c.id)}" aria-label="Edit details for bed ${esc(c.bed)}"><svg class="pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span class="k">${esc(icuName(c)||"Bed")}</span><span class="v">${esc(c.bed)}</span>${c.codeName?`<span class="code">${esc(c.codeName)}</span>`:""}</button>
         <div class="mid">
           <div class="drug">${esc(c.drug)} ${aware(c.drug)==="NotRec"?"":`<span class="aw ${aware(c.drug)}">${AW_LABEL[aware(c.drug)]}</span>`}</div>
           ${isLinked(c)?`<div class="linkline">${c.linkMode==="add"?`${esc(c.linkDecision)}: added to ${esc(c.linkedFromDrug)}`:`${esc(c.linkDecision||"Switched")} from ${esc(c.linkedFromDrug)}`} · ${fmt(c.startedAt)}</div>`:""}
@@ -641,7 +649,7 @@ function render(){
         const late = revs[0] && (Date.parse(revs[0].at)-s)>deadlineH(c)*H;
         const lr = revs[revs.length-1];
         const out = lr ? esc(lr.decision)+(lr.switchedTo?" → "+esc(lr.switchedTo.join(", ")):"") : "Stopped";
-        return `<tr><td><button class="bedlink" type="button" data-edit="${esc(c.id)}" aria-label="Edit details">${esc(c.bed)}</button></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${isLinked(c)?`<br><span class="meta">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</span>`:""}${c.demo?' <i>(example)</i>':''}</td><td>${esc(indLabel(c))}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
+        return `<tr><td><button class="bedlink" type="button" data-edit="${esc(c.id)}" aria-label="Edit details">${esc((icuName(c)?icuName(c)+" ":"")+c.bed)}</button></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${isLinked(c)?`<br><span class="meta">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</span>`:""}${c.demo?' <i>(example)</i>':''}</td><td>${esc(indLabel(c))}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
           <td class="num">${((Date.parse(c.stoppedAt)-s)/D).toFixed(1)}</td><td class="num" style="${late?'color:var(--over)':''}">${first}</td>
           <td>${out}</td><td><button class="btn quiet" type="button" data-to="${esc(c.id)}">Details</button></td></tr>`;
       }).join("")}</tbody></table></div>`;
@@ -662,10 +670,13 @@ function openAdd(c){
   $("addSub").textContent = c ? `${who(c)} · ${c.drug}. Time-out history is kept.` : "Log each antibiotic separately. Time-out is due by 72 h (24 h for prophylaxis).";
   $("addSave").textContent = c ? "Save changes" : "Start time-out clock";
   if (c){
+    $("fIcu").value=c.icu||"CCU"; $("fIcuOther").value=c.icuOther||"";
     $("fBed").value=c.bed||""; $("fCode").value=c.codeName||""; $("fStart").value=toLocalInput(new Date(c.startedAt));
     $("fDrug").value=c.drug||""; $("fInd").value=c.indication; $("fIndOther").value=c.indOther||""; $("fSite").value=c.site; $("fRat").value=c.rationale||"";
     $("fPlan").value=c.plannedDays||""; $("fBy").value=c.by||lastBy(); $("fCult").checked=!!c.cultureSent;
-  } else { $("fCult").checked=true; $("fStart").value = toLocalInput(new Date()); $("fBy").value=lastBy(); }
+  } else { $("fCult").checked=true; $("fStart").value = toLocalInput(new Date()); $("fBy").value=lastBy();
+    const li=lastIcu(); if(li){ $("fIcu").value=li.icu||"CCU"; $("fIcuOther").value=li.icuOther||""; } }
+  $("fIcuOtherF").hidden = $("fIcu").value!=="Other";
   $("fIndOtherF").hidden = $("fInd").value!=="Other";
   // culture fields (prefill on edit)
   $("fCxOrg").value=""; $("fCxSpec").value="Blood"; document.querySelectorAll('input[name="fsus"]').forEach(r=>r.checked=false);
@@ -679,6 +690,7 @@ function openAdd(c){
 $("addBtn").onclick = ()=>{ if(db) openAdd(null); };
 $("addCancel").onclick = ()=>{ $("addScrim").hidden=true; editId=null; };
 $("fRat").addEventListener("input", syncCxSec);
+$("fIcu").addEventListener("change", ()=>{ $("fIcuOtherF").hidden = $("fIcu").value!=="Other"; if($("fIcu").value==="Other") $("fIcuOther").focus(); });
 $("fRat").addEventListener("change", syncCxSec);
 $("fInd").addEventListener("change", ()=>{ syncCxSec();
   if($("fInd").value==="Prophylaxis" && !$("fRat").value) $("fRat").value="Surgical prophylaxis";
@@ -690,6 +702,8 @@ $("addForm").addEventListener("submit", async e=>{
   const rationale=$("fRat").value.trim(), planV=$("fPlan").value.trim();
   const start = startV ? new Date(startV) : null;
   const err = t => { $("addErr").textContent=t; };
+  const icu=$("fIcu").value, icuOther=$("fIcuOther").value.trim();
+  if(icu==="Other" && !icuOther) return err("Enter the ICU name.");
   if(!bed) return err("Enter the bed number.");
   if(!codeName) return err("Enter the patient's code name.");
   if(!drug) return err("Enter the antibiotic.");
@@ -711,12 +725,13 @@ $("addForm").addEventListener("submit", async e=>{
   const warnKey = [bed,codeName,drug,startV].join("|");
   let warn = "";
   if (Date.now()-start.getTime() > 30*D) warn = `Start date is ${Math.floor((Date.now()-start.getTime())/D)} days ago. Check the date, or tap Save again to keep it.`;
-  const dup = courses.find(x=>x.id!==editId && x.status!=="stopped" && String(x.bed).toLowerCase()===bed.toLowerCase() && String(x.drug).toLowerCase()===drug.toLowerCase());
+  const dup = courses.find(x=>x.id!==editId && x.status!=="stopped" && (x.icu||"")===icu && String(x.bed).toLowerCase()===bed.toLowerCase() && String(x.drug).toLowerCase()===drug.toLowerCase());
   if (!warn && dup) warn = `Bed ${dup.bed} already has active ${dup.drug} (started ${fmt(dup.startedAt)}). Tap Save again to add it anyway.`;
   if (warn && $("addForm").dataset.warned !== warnKey){ $("addForm").dataset.warned = warnKey; return err(warn); }
   $("addForm").dataset.warned = "";
   const by=$("fBy").value.trim(); setLastBy(by);
-  const data = { bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, indOther: $("fInd").value==="Other" ? indOther : "", site:$("fSite").value, rationale,
+  setLastIcu({icu, icuOther: icu==="Other"?icuOther:""});
+  const data = { icu, icuOther: icu==="Other"?icuOther:"", bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, indOther: $("fInd").value==="Other" ? indOther : "", site:$("fSite").value, rationale,
     plannedDays, cultureSent:$("fCult").checked, startedAt:start.toISOString() };
   if (cultureProven() && cxOrg) data.culture = { result:"Positive", specimen:$("fCxSpec").value, organism:cxOrg, sus:cxSus, susFor:drug };
   $("addSave").disabled=true;
@@ -865,7 +880,7 @@ $("toForm").addEventListener("submit", async e=>{
   try{
     await db.doc("courses/"+c.id).update(patch);
     for (const r of newOnes){
-      await db.collection("courses").add({ bed:c.bed, codeName:c.codeName, drug:r.drug, aware:aware(r.drug), indication:$("swInd").value,
+      await db.collection("courses").add({ icu:c.icu||"", icuOther:c.icuOther||"", bed:c.bed, codeName:c.codeName, drug:r.drug, aware:aware(r.drug), indication:$("swInd").value,
         site:c.site, rationale:r.rationale, plannedDays:swPlan, cultureSent:c.cultureSent, startedAt:at.toISOString(), by,
         status:"active", reviews:[], createdAt:new Date().toISOString(), culture,
         linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, linkMode:stopCur?"replace":"add", reviewDueAt:new Date(at.getTime()+days*D).toISOString() });
@@ -971,7 +986,9 @@ function setRange(days){
   else from=new Date(Date.now()-(+days-1)*D);
   $("pdfFrom").value=dIn(from); $("pdfTo").value=dIn(to);
 }
-$("pdfBtn").onclick=()=>{ setRange(30); $("pdfErr").textContent=""; $("pdfScrim").hidden=false; };
+$("pdfBtn").onclick=()=>{
+  const names=[...new Set(courses.filter(c=>!c.demo).map(icuName).filter(Boolean))].sort();
+  $("pdfIcu").innerHTML = `<option value="">All ICUs</option>`+names.map(n=>`<option>${esc(n)}</option>`).join("")+(courses.some(c=>!c.demo&&!icuName(c))?`<option value="__none">ICU not recorded</option>`:""); setRange(30); $("pdfErr").textContent=""; $("pdfScrim").hidden=false; };
 $("pdfCancel").onclick=()=>{ $("pdfScrim").hidden=true; };
 $("pdfQuick").addEventListener("click", e=>{ const b=e.target.closest("[data-days]"); if(b) setRange(b.dataset.days); });
 $("pdfForm").addEventListener("submit", e=>{
@@ -980,11 +997,12 @@ $("pdfForm").addEventListener("submit", e=>{
   if(!f||!t) return $("pdfErr").textContent="Choose both dates.";
   const from=new Date(f+"T00:00"), to=new Date(t+"T23:59:59");
   if(from>to) return $("pdfErr").textContent="'From' must be before 'To'.";
-  const list=courses.filter(c=>!c.demo).filter(c=>{const s=Date.parse(c.startedAt); return s>=from && s<=to;})
+  const icuSel=$("pdfIcu").value;
+  const list=courses.filter(c=>!c.demo).filter(c=>!icuSel || (icuSel==="__none" ? !icuName(c) : icuName(c)===icuSel)).filter(c=>{const s=Date.parse(c.startedAt); return s>=from && s<=to;})
     .sort((a,b)=>Date.parse(a.startedAt)-Date.parse(b.startedAt));
   if(!list.length) return $("pdfErr").textContent="No courses started in this period.";
-  const html=buildReport(list, from, to);
-  const name="Antibiotic-Timeout-Report_"+f+"_to_"+t;
+  const html=buildReport(list, from, to, icuSel==="__none"?"ICU not recorded":(icuSel||"All ICUs"));
+  const name="Antibiotic-Timeout-Report_"+(icuSel&&icuSel!=="__none"?icuSel.replace(/[^A-Za-z0-9]+/g,"-")+"_":"")+f+"_to_"+t;
   $("pdfScrim").hidden=true;
   if(window.AndroidApp && AndroidApp.exportPdf){ $("pdfDone").hidden=true; AndroidApp.exportPdf(html, name); showNotice("Creating PDF… this takes a few seconds."); return; }
   if(window.AndroidApp && AndroidApp.printHtml){ AndroidApp.printHtml(html, name); return; }
@@ -995,7 +1013,7 @@ $("pdfForm").addEventListener("submit", e=>{
 $("repClose").onclick=()=>{ $("repView").hidden=true; $("repFrame").srcdoc=""; };
 $("repPrint").onclick=()=>{ const f=$("repFrame"), t0=document.title; document.title=f.dataset.name||t0; try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(_){ window.print(); } document.title=t0; };
 
-function buildReport(list, from, to){
+function buildReport(list, from, to, icuTitle){
   const now=Date.now(), pct=(a,b)=>b?Math.round(a*100/b)+"%":"–";
   const median=a=>{ if(!a.length) return null; const s=[...a].sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
   const fh=x=>x==null?"–":(Math.round(x*10)/10)+" h", fd=x=>x==null?"–":(Math.round(x*10)/10)+" d";
@@ -1054,7 +1072,7 @@ function buildReport(list, from, to){
     const cxT = !cx ? "–" : cx.result==="Positive" ? `${esc(cx.organism)} (${esc(cx.specimen)})${cx.sus&&(!cx.susFor||cx.susFor===c.drug)?" · "+esc(cx.sus[0]):""}` : esc(cx.result);
     const ps=plannedStop(c), over = ps && (c.status==="stopped"?Date.parse(c.stoppedAt):now) > ps+12*H;
     const dec = revs.map(r=>esc(r.decision)+(r.switchedTo?" → "+esc(r.switchedTo.join(", ")):"")).join("; ")||"–";
-    return `<tr><td class="b">${esc(c.bed)}</td><td>${esc(c.codeName||"–")}</td><td class="n">${dd(c.startedAt)}</td>
+    return `<tr><td>${esc(icuName(c)||"–")}</td><td class="b">${esc(c.bed)}</td><td>${esc(c.codeName||"–")}</td><td class="n">${dd(c.startedAt)}</td>
       <td>${esc(drugs)}${isLinked(c)?`<div class="sm">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
       <td>${esc(indLabel(c).replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
       <td>${cxT}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
@@ -1071,7 +1089,7 @@ function buildReport(list, from, to){
   .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
   .kpi{border:1px solid #D3DDDA;border-radius:6px;padding:7px 8px;break-inside:avoid}
   .kpi .v{font-size:18px;font-weight:700;color:#1F5D4C;line-height:1.1} .kpi .l{font-weight:600;font-size:9.5px;line-height:1.25} .kpi .s{color:#56665F;font-size:8.5px;margin-top:2px}
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;margin-top:6px}
   .box{border:1px solid #D3DDDA;border-radius:6px;padding:7px 9px;break-inside:avoid}
   table{border-collapse:collapse;width:100%} .mini td{padding:2px 0;border-bottom:1px dotted #D3DDDA} .mini tr:last-child td{border:0}
   .r{text-align:right} .m{color:#56665F;padding-left:6px}
@@ -1084,12 +1102,12 @@ function buildReport(list, from, to){
   @media print{body{width:auto;padding:0;zoom:1!important}}
   </style></head><body>
   <header><div><div class="eb">Antimicrobial stewardship · ICU</div><h1>Antibiotic Time-out Report</h1></div>
-  <div class="meta"><b>Period:</b> ${from.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} – ${to.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}<br><b>Generated:</b> ${dd(new Date().toISOString())}</div></header>
+  <div class="meta"><b>ICU:</b> ${esc(icuTitle||"All ICUs")}<br><b>Period:</b> ${from.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} – ${to.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}<br><b>Generated:</b> ${dd(new Date().toISOString())}</div></header>
   <div class="kpis">${kpis.map(([l,v,s2])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${esc(l)}</div><div class="s">${esc(s2)}</div></div>`).join("")}</div>
-  <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n)}${tbl("Indication",count(list,indLabel),n)}${tbl("Suspected source",count(list,c=>c.site),n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
+  <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n)}${tbl("ICU",count(list,c=>icuName(c)||"Not recorded"),n)}${tbl("Indication",count(list,indLabel),n)}${tbl("Suspected source",count(list,c=>c.site),n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
   <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Organisms isolated",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${n} courses)</h2>
-  <table class="list"><thead><tr><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="list"><thead><tr><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
   <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h, or 24 h for prophylaxis, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
   </body></html>`;
 }
@@ -1130,7 +1148,7 @@ $("q").addEventListener("input", ()=>render());
   function clean(d){
     if(!d || typeof d!=="object" || !okDate(d.startedAt) || typeof d.drug!=="string" || !d.drug) return null;
     const out = Object.assign({}, d);
-    ["bed","codeName","drug","indication","indOther","site","rationale","by","linkedFromDrug","linkDecision","linkMode"].forEach(k=>{ if(out[k]!=null) out[k]=String(out[k]).slice(0,200); });
+    ["icu","icuOther","bed","codeName","drug","indication","indOther","site","rationale","by","linkedFromDrug","linkDecision","linkMode"].forEach(k=>{ if(out[k]!=null) out[k]=String(out[k]).slice(0,200); });
     out.bed = out.bed || "?"; out.codeName = out.codeName || "";
     if(!["Empirical","Targeted (culture-directed)","Prophylaxis","Other"].includes(out.indication)) out.indication = out.indication ? "Other" : "Empirical", out.indOther = out.indOther || d.indication || "";
     out.site = out.site || "Other";
