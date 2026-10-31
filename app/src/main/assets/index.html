@@ -136,6 +136,11 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .pill{font:700 12.5px/1 var(--font);padding:7px 10px;border-radius:999px;white-space:nowrap}
 .pill.overdue{background:var(--over-soft);color:var(--over)} .pill.pending{background:var(--ok-soft);color:var(--ok)}
 .state .btn{padding:11px 14px;font-size:13.5px}
+.cardbtns{display:flex;gap:4px;align-items:center}
+.cardbtns .btn{white-space:nowrap}
+.cardbtns .editbtn{padding-inline:6px}
+.editbtn{display:inline-flex;align-items:center;gap:5px;color:var(--accent)!important}
+.editbtn svg{width:15px;height:15px}
 @media (max-width:640px){
   .course{grid-template-columns:64px 1fr}
   .state{grid-column:1 / -1;flex-direction:row;justify-content:space-between;align-items:center;text-align:left;border-top:1px solid var(--line);padding-top:12px}
@@ -276,10 +281,11 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     <div class="field"><label for="fDrug">Antibiotic</label><input type="text" id="fDrug" list="drugList" autocomplete="off" placeholder="Type or pick"></div>
     <div class="row2">
       <div class="field"><label for="fInd">Indication</label>
-        <select id="fInd"><option>Empirical</option><option>Targeted (culture-directed)</option><option>Prophylaxis</option></select></div>
+        <select id="fInd"><option>Empirical</option><option>Targeted (culture-directed)</option><option>Prophylaxis</option><option value="Other">Other (specify)</option></select></div>
       <div class="field"><label for="fSite">Suspected source</label>
         <select id="fSite"><option>Pneumonia</option><option>Blood / line (CLABSI)</option><option>Urine (CAUTI / UTI)</option><option>Intra-abdominal</option><option>Skin / soft tissue</option><option>CNS</option><option>Sepsis, source unknown</option><option>Other</option></select></div>
     </div>
+    <div class="field" id="fIndOtherF" hidden><label for="fIndOther">Indication — please specify</label><input type="text" id="fIndOther" maxlength="80" autocomplete="off" placeholder="e.g. Febrile neutropenia, pre-emptive antifungal"></div>
     <div class="field"><label for="fRat">Rationale</label><input type="text" id="fRat" list="ratList" maxlength="160" autocomplete="off" placeholder="Why this antibiotic? Type or pick"></div>
     <div class="row2">
       <div class="field"><label for="fPlan">Planned duration (days)</label><input type="number" id="fPlan" min="1" max="42" step="1" placeholder="e.g. 7"></div>
@@ -469,6 +475,7 @@ const SCRIMS=["addScrim","toScrim","ackScrim","pdfScrim","dataScrim"];
 
 /* ---------- rules ---------- */
 const isProph = c => c.indication==="Prophylaxis";
+const indLabel = c => c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : c.indication;
 const deadlineH = c => isProph(c) ? 24 : 72;
 const plannedStop = c => c.plannedDays ? Date.parse(c.startedAt) + c.plannedDays*D : null;
 const isLinked = c => !!c.linkedFrom;
@@ -569,7 +576,7 @@ function render(){
         <div class="mid">
           <div class="drug">${esc(c.drug)} <span class="aw ${aware(c.drug)}">${AW_LABEL[aware(c.drug)]}</span></div>
           ${isLinked(c)?`<div class="linkline">${c.linkMode==="add"?`${esc(c.linkDecision)}: added to ${esc(c.linkedFromDrug)}`:`${esc(c.linkDecision||"Switched")} from ${esc(c.linkedFromDrug)}`} · ${fmt(c.startedAt)}</div>`:""}
-          <div class="meta"><span class="mono">Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h</span> · ${esc(c.indication)} · ${esc(c.site)}</div>
+          <div class="meta"><span class="mono">Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h</span> · ${esc(indLabel(c))} · ${esc(c.site)}</div>
           ${c.rationale?`<div class="rat"><b>Rationale:</b> ${esc(c.rationale)}</div>`:""}
           <div class="bar" role="img" aria-label="${Math.floor(h)} hours on therapy">
             <span class="fill" style="width:${pct(h)}"></span>
@@ -582,7 +589,7 @@ function render(){
         </div>
         <div class="state">
           <div><span class="pill ${st.s==="overdue"?"overdue":"pending"}">${label}</span><div class="meta" style="margin-top:6px">${detail}</div></div>
-          <button class="btn ${st.s==="overdue"||st.pastStop?"primary":""}" type="button" data-to="${esc(c.id)}">${st.first?"Record time-out":"Review"}</button>
+          <div class="cardbtns"><button class="btn quiet editbtn" type="button" data-edit="${esc(c.id)}" aria-label="Edit details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button><button class="btn ${st.s==="overdue"||st.pastStop?"primary":""}" type="button" data-to="${esc(c.id)}">${st.first?"Record time-out":"Review"}</button></div>
         </div>
       </article>`;
     }).join("");
@@ -598,9 +605,9 @@ function render(){
         const late = revs[0] && (Date.parse(revs[0].at)-s)>deadlineH(c)*H;
         const lr = revs[revs.length-1];
         const out = lr ? esc(lr.decision)+(lr.switchedTo?" → "+esc(lr.switchedTo.join(", ")):"") : "Stopped";
-        return `<tr><td><b>${esc(c.bed)}</b></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${isLinked(c)?`<br><span class="meta">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</span>`:""}${c.demo?' <i>(example)</i>':''}</td><td>${esc(c.indication)}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
+        return `<tr><td><b>${esc(c.bed)}</b></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${isLinked(c)?`<br><span class="meta">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</span>`:""}${c.demo?' <i>(example)</i>':''}</td><td>${esc(indLabel(c))}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
           <td class="num">${((Date.parse(c.stoppedAt)-s)/D).toFixed(1)}</td><td class="num" style="${late?'color:var(--over)':''}">${first}</td>
-          <td>${out}</td><td><button class="btn quiet" type="button" data-to="${esc(c.id)}">Details</button></td></tr>`;
+          <td>${out}</td><td style="white-space:nowrap"><button class="btn quiet" type="button" data-edit="${esc(c.id)}">Edit</button><button class="btn quiet" type="button" data-to="${esc(c.id)}">Details</button></td></tr>`;
       }).join("")}</tbody></table></div>`;
 }
 
@@ -620,14 +627,18 @@ function openAdd(c){
   $("addSave").textContent = c ? "Save changes" : "Start time-out clock";
   if (c){
     $("fBed").value=c.bed||""; $("fCode").value=c.codeName||""; $("fStart").value=toLocalInput(new Date(c.startedAt));
-    $("fDrug").value=c.drug||""; $("fInd").value=c.indication; $("fSite").value=c.site; $("fRat").value=c.rationale||"";
+    $("fDrug").value=c.drug||""; $("fInd").value=c.indication; $("fIndOther").value=c.indOther||""; $("fSite").value=c.site; $("fRat").value=c.rationale||"";
     $("fPlan").value=c.plannedDays||""; $("fBy").value=c.by||lastBy(); $("fCult").checked=!!c.cultureSent;
   } else { $("fCult").checked=true; $("fStart").value = toLocalInput(new Date()); $("fBy").value=lastBy(); }
+  $("fIndOtherF").hidden = $("fInd").value!=="Other";
   $("addScrim").hidden=false; if(!c) $("fBed").focus();
 }
 $("addBtn").onclick = ()=>{ if(db) openAdd(null); };
 $("addCancel").onclick = ()=>{ $("addScrim").hidden=true; editId=null; };
-$("fInd").addEventListener("change", ()=>{ if($("fInd").value==="Prophylaxis" && !$("fRat").value) $("fRat").value="Surgical prophylaxis"; });
+$("fInd").addEventListener("change", ()=>{
+  if($("fInd").value==="Prophylaxis" && !$("fRat").value) $("fRat").value="Surgical prophylaxis";
+  $("fIndOtherF").hidden = $("fInd").value!=="Other"; if($("fInd").value==="Other") $("fIndOther").focus();
+});
 $("addForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const bed=$("fBed").value.trim(), drug=$("fDrug").value.trim(), startV=$("fStart").value, codeName=$("fCode").value.trim();
@@ -640,10 +651,12 @@ $("addForm").addEventListener("submit", async e=>{
   if(!start || isNaN(start)) return err("Enter the start time.");
   if(start.getTime() > Date.now()+5*60e3) return err("Start time can't be in the future.");
   if(!rationale) return err("Enter the rationale.");
+  const indOther = $("fIndOther").value.trim();
+  if($("fInd").value==="Other" && !indOther) return err("Specify the indication.");
   const plannedDays = planV ? parseInt(planV,10) : null;
   if(planV && !(plannedDays>=1 && plannedDays<=42)) return err("Planned duration must be 1–42 days.");
   const by=$("fBy").value.trim(); setLastBy(by);
-  const data = { bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, site:$("fSite").value, rationale,
+  const data = { bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, indOther: $("fInd").value==="Other" ? indOther : "", site:$("fSite").value, rationale,
     plannedDays, cultureSent:$("fCult").checked, startedAt:start.toISOString() };
   $("addSave").disabled=true;
   try{
@@ -705,7 +718,7 @@ function openTimeout(c){
   const h = ((stopped?Date.parse(c.stoppedAt):Date.now())-Date.parse(c.startedAt))/H;
   $("toForm").reset(); $("toErr").textContent=""; fillReasons(null); $("swRows").innerHTML=""; $("swAdd").hidden=false;
   $("toTitle").textContent = `${who(c)} · ${c.drug}`;
-  $("toSub").textContent = `${stopped?"Stopped · ":""}Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${c.indication} · ${c.site}${c.rationale?" · "+c.rationale:""}`;
+  $("toSub").textContent = `${stopped?"Stopped · ":""}Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${indLabel(c)} · ${c.site}${c.rationale?" · "+c.rationale:""}`;
   $("swAddTxt").textContent = `Keep ${c.drug}, add new`;
   $("swRepTxt").textContent = `Stop ${c.drug}, replace`;
   $("cxSusLab").textContent = `${c.drug} is`;
@@ -724,6 +737,10 @@ function openTimeout(c){
   $("toHistory").innerHTML = (c.ack?`<div><b>Alert acknowledged</b> · ${fmt(c.ack.at)} · ${esc(c.ack.by)}</div>`:"") + revs.map(r=>`<div><b>${esc(r.decision)}</b> · ${fmt(r.at)} (${Math.round(r.hoursFromStart)} h)${r.fromDrug?` · ${esc(r.fromDrug)} → ${esc(r.toDrug)}`:""}${r.switchedTo?` → ${esc(r.switchedTo.join(", "))}${r.stoppedCurrent?"":" (added)"}`:""}${r.by?` · ${esc(r.by)}`:""}<br>${esc((r.reasons||[]).join("; "))}${r.culture?" · "+esc(cultureTxt(r.culture)):""}${r.note?` — ${esc(r.note)}`:""}</div>`).join("");
   $("toScrim").hidden=false;
 }
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-edit]"); if(!b) return;
+  const c = courses.find(x=>x.id===b.dataset.edit); if(c) openAdd(c);
+});
 document.addEventListener("click", e=>{
   const b = e.target.closest("[data-to]"); if(!b) return;
   const c = courses.find(x=>x.id===b.dataset.to); if(c) openTimeout(c);
@@ -807,7 +824,7 @@ document.addEventListener("click", e=>{
   ackId=c.id; $("ackForm").reset(); $("ackErr").textContent="";
   const h=(Date.now()-Date.parse(c.startedAt))/H;
   $("ackTitle").textContent = isProph(c) ? "Acknowledge 24 h prophylaxis alert" : "Acknowledge 72 h alert";
-  $("ackSub").textContent = `${who(c)} · ${c.drug} · ${c.indication.toLowerCase()} · ${Math.floor(h)} h on therapy · no time-out yet`;
+  $("ackSub").textContent = `${who(c)} · ${c.drug} · ${indLabel(c).toLowerCase()} · ${Math.floor(h)} h on therapy · no time-out yet`;
   $("ackBy").value = lastBy();
   $("ackScrim").hidden=false; $("ackBy").focus();
 });
@@ -967,7 +984,7 @@ function buildReport(list, from, to){
     const dec = revs.map(r=>esc(r.decision)+(r.switchedTo?" → "+esc(r.switchedTo.join(", ")):"")).join("; ")||"–";
     return `<tr><td class="b">${esc(c.bed)}</td><td>${esc(c.codeName||"–")}</td><td class="n">${dd(c.startedAt)}</td>
       <td>${esc(drugs)}${isLinked(c)?`<div class="sm">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
-      <td>${esc(c.indication.replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
+      <td>${esc(indLabel(c).replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
       <td>${cxT}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
       <td>${c.ack?esc(c.ack.by)+" "+dd(c.ack.at):"–"}</td><td class="n${over?" late":""}">${c.plannedDays?c.plannedDays+" d":"–"}</td>
       <td>${c.status==="stopped"?"Stopped "+dd(c.stoppedAt):"Active"}</td><td class="n">${dur.toFixed(1)}</td></tr>`;
@@ -997,7 +1014,7 @@ function buildReport(list, from, to){
   <header><div><div class="eb">Antimicrobial stewardship · ICU</div><h1>Antibiotic Time-out Report</h1></div>
   <div class="meta"><b>Period:</b> ${from.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} – ${to.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}<br><b>Generated:</b> ${dd(new Date().toISOString())}</div></header>
   <div class="kpis">${kpis.map(([l,v,s2])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${esc(l)}</div><div class="s">${esc(s2)}</div></div>`).join("")}</div>
-  <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n)}${tbl("Indication",count(list,c=>c.indication),n)}${tbl("Suspected source",count(list,c=>c.site),n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
+  <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n)}${tbl("Indication",count(list,indLabel),n)}${tbl("Suspected source",count(list,c=>c.site),n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
   <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Organisms isolated",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${n} courses)</h2>
   <table class="list"><thead><tr><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
