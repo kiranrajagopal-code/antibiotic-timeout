@@ -305,6 +305,20 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     </div>
     <div class="field" id="fIndOtherF" hidden><label for="fIndOther">Indication — please specify</label><input type="text" id="fIndOther" maxlength="80" autocomplete="off" placeholder="e.g. Febrile neutropenia, pre-emptive antifungal"></div>
     <div class="field"><label for="fRat">Rationale</label><input type="text" id="fRat" list="ratList" maxlength="160" autocomplete="off" placeholder="Why this antibiotic? Type or pick"></div>
+    <div class="sec" id="fCxSec" hidden>
+      <span class="lab">Culture</span>
+      <div class="row2">
+        <div class="field"><label for="fCxSpec">Specimen</label><select id="fCxSpec"><option>Blood</option><option>ETA / BAL</option><option>Urine</option><option>Pus / tissue</option><option>Drain fluid</option><option>CSF</option><option>Line tip</option><option>Other</option></select></div>
+        <div class="field"><label for="fCxOrg">Organism</label><input type="text" id="fCxOrg" list="orgList" maxlength="60" autocomplete="off" placeholder="Type or pick"></div>
+      </div>
+      <div class="field"><span class="lab">This antibiotic is</span>
+        <div class="chips" id="fCxSus">
+          <label class="chip"><input type="radio" name="fsus" value="Sensitive"><span>Sensitive</span></label>
+          <label class="chip"><input type="radio" name="fsus" value="Resistant"><span>Resistant</span></label>
+          <label class="chip"><input type="radio" name="fsus" value="Not tested"><span>Not tested</span></label>
+        </div>
+      </div>
+    </div>
     <div class="row2">
       <div class="field"><label for="fPlan">Planned duration (days)</label><input type="number" id="fPlan" min="1" max="42" step="1" placeholder="e.g. 7"></div>
       <div class="field"><label for="fBy">Your initials</label><input type="text" id="fBy" maxlength="8" autocomplete="off"></div>
@@ -493,6 +507,8 @@ const SCRIMS=["addScrim","toScrim","ackScrim","pdfScrim","dataScrim"];
 
 /* ---------- rules ---------- */
 const isProph = c => c.indication==="Prophylaxis";
+const cultureProven = () => $("fInd").value==="Targeted (culture-directed)" || /culture[- ]proven/i.test($("fRat").value);
+function syncCxSec(){ $("fCxSec").hidden = !cultureProven(); }
 const indLabel = c => c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : (c.indication || "–");
 const deadlineH = c => isProph(c) ? 24 : 72;
 const plannedStop = c => c.plannedDays ? Date.parse(c.startedAt) + c.plannedDays*D : null;
@@ -651,11 +667,20 @@ function openAdd(c){
     $("fPlan").value=c.plannedDays||""; $("fBy").value=c.by||lastBy(); $("fCult").checked=!!c.cultureSent;
   } else { $("fCult").checked=true; $("fStart").value = toLocalInput(new Date()); $("fBy").value=lastBy(); }
   $("fIndOtherF").hidden = $("fInd").value!=="Other";
+  // culture fields (prefill on edit)
+  $("fCxOrg").value=""; $("fCxSpec").value="Blood"; document.querySelectorAll('input[name="fsus"]').forEach(r=>r.checked=false);
+  if (c && c.culture && c.culture.result==="Positive"){
+    $("fCxOrg").value=c.culture.organism||""; $("fCxSpec").value=c.culture.specimen||"Blood";
+    if (!c.culture.susFor || c.culture.susFor===c.drug){ const r=document.querySelector(`input[name="fsus"][value="${c.culture.sus}"]`); if(r) r.checked=true; }
+  }
+  syncCxSec();
   $("addScrim").hidden=false; if(!c) $("fBed").focus();
 }
 $("addBtn").onclick = ()=>{ if(db) openAdd(null); };
 $("addCancel").onclick = ()=>{ $("addScrim").hidden=true; editId=null; };
-$("fInd").addEventListener("change", ()=>{
+$("fRat").addEventListener("input", syncCxSec);
+$("fRat").addEventListener("change", syncCxSec);
+$("fInd").addEventListener("change", ()=>{ syncCxSec();
   if($("fInd").value==="Prophylaxis" && !$("fRat").value) $("fRat").value="Surgical prophylaxis";
   $("fIndOtherF").hidden = $("fInd").value!=="Other"; if($("fInd").value==="Other") $("fIndOther").focus();
 });
@@ -672,6 +697,8 @@ $("addForm").addEventListener("submit", async e=>{
   if(start.getTime() > Date.now()+5*60e3) return err("Start time can't be in the future.");
   if(!rationale) return err("Enter the rationale.");
   const indOther = $("fIndOther").value.trim();
+  const cxOrg = $("fCxOrg").value.trim(), cxSus=(document.querySelector('input[name="fsus"]:checked')||{}).value||"";
+  if (cultureProven() && !cxOrg) return err("Enter the organism grown in culture.");
   if($("fInd").value==="Other" && !indOther) return err("Specify the indication.");
   const plannedDays = planV ? parseInt(planV,10) : null;
   if(planV && !(plannedDays>=1 && plannedDays<=42)) return err("Planned duration must be 1–42 days.");
@@ -691,6 +718,7 @@ $("addForm").addEventListener("submit", async e=>{
   const by=$("fBy").value.trim(); setLastBy(by);
   const data = { bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, indOther: $("fInd").value==="Other" ? indOther : "", site:$("fSite").value, rationale,
     plannedDays, cultureSent:$("fCult").checked, startedAt:start.toISOString() };
+  if (cultureProven() && cxOrg) data.culture = { result:"Positive", specimen:$("fCxSpec").value, organism:cxOrg, sus:cxSus, susFor:drug };
   $("addSave").disabled=true;
   try{
     if (editId){
@@ -1001,7 +1029,7 @@ function buildReport(list, from, to){
   const firstDec={}; firsts.forEach(r=>firstDec[r.decision]=(firstDec[r.decision]||0)+1);
   const allDec={}; allRevs.forEach(r=>allDec[r.decision]=(allDec[r.decision]||0)+1);
   const count=(arr,k)=>{const m={}; arr.forEach(c=>{const v=k(c); if(v) m[v]=(m[v]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
-  const orgs={}; list.forEach(c=>{ const seen=new Set(); (c.reviews||[]).forEach(r=>{ if(r.culture&&r.culture.result==="Positive"&&r.culture.organism) seen.add(r.culture.organism); }); seen.forEach(o=>orgs[o]=(orgs[o]||0)+1); });
+  const orgs={}; list.forEach(c=>{ const seen=new Set(); [c.culture,...(c.reviews||[]).map(r=>r.culture)].forEach(cx=>{ if(cx&&cx.result==="Positive"&&cx.organism) seen.add(cx.organism); }); seen.forEach(o=>orgs[o]=(orgs[o]||0)+1); });
   const tbl=(title,rows,total)=>`<div class="box"><h3>${esc(title)}</h3><table class="mini"><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="r">${v}</td><td class="r m">${pct(v,total)}</td></tr>`).join("")||'<tr><td class="m">None</td></tr>'}</tbody></table></div>`;
   const kpis=[
     ["Courses started", n, `${orig.length} new · ${linked.length} after a switch`],
