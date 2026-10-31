@@ -9,6 +9,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.content.ContentValues;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.print.PdfExporter;
@@ -33,6 +35,7 @@ public class MainActivity extends Activity {
     private WebView printView; // kept alive until printing finishes
     private String pendingSave;
     private Uri lastPdf;
+    private final Handler main = new Handler(Looper.getMainLooper());
     private static final int REQ_SAVE = 11, REQ_OPEN = 12;
 
     /** Called from the page: render report HTML and open Android's print / Save as PDF dialog. */
@@ -104,7 +107,7 @@ public class MainActivity extends Activity {
                     @Override
                     public void onPageFinished(WebView view, String url) {
                         if (done) return; done = true;
-                        view.postDelayed(() -> writePdf(view, html, name), 400);
+                        main.postDelayed(() -> writePdf(view, html, name), 500);
                     }
                 });
                 pv.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null);
@@ -206,6 +209,7 @@ public class MainActivity extends Activity {
 
     private void writePdf(WebView view, String html, String name) {
         final String file = name + ".pdf";
+        final boolean[] finished = {false};
         Uri uri = null;
         try {
             ContentValues v = new ContentValues();
@@ -217,7 +221,15 @@ public class MainActivity extends Activity {
             if (uri == null) throw new Exception("no uri");
             final Uri target = uri;
             final ParcelFileDescriptor pfd = getContentResolver().openFileDescriptor(target, "w");
-            PdfExporter.export(view.createPrintDocumentAdapter(name), a4(), pfd, ok -> {
+            // Safety net: if nothing comes back in 20 s, use the print screen instead
+            main.postDelayed(() -> {
+                if (finished[0]) return; finished[0] = true;
+                try { pfd.close(); } catch (Exception ignored) {}
+                try { getContentResolver().delete(target, null, null); } catch (Exception ignored) {}
+                showPrintDialog(html, name);
+            }, 20000);
+            PdfExporter.export(view.createPrintDocumentAdapter(name), a4(), pfd, ok -> main.post(() -> {
+                if (finished[0]) return; finished[0] = true;
                 try { pfd.close(); } catch (Exception ignored) {}
                 if (ok) {
                     ContentValues done = new ContentValues();
@@ -229,8 +241,9 @@ public class MainActivity extends Activity {
                     try { getContentResolver().delete(target, null, null); } catch (Exception ignored) {}
                     showPrintDialog(html, name);
                 }
-            });
+            }));
         } catch (Throwable t) {
+            finished[0] = true;
             if (uri != null) { try { getContentResolver().delete(uri, null, null); } catch (Exception ignored) {} }
             showPrintDialog(html, name);
         }

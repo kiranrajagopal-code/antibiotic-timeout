@@ -958,7 +958,7 @@ $("pdfForm").addEventListener("submit", e=>{
   const html=buildReport(list, from, to);
   const name="Antibiotic-Timeout-Report_"+f+"_to_"+t;
   $("pdfScrim").hidden=true;
-  if(window.AndroidApp && AndroidApp.exportPdf){ AndroidApp.exportPdf(html, name); showNotice("Creating PDF…"); return; }
+  if(window.AndroidApp && AndroidApp.exportPdf){ $("pdfDone").hidden=true; AndroidApp.exportPdf(html, name); showNotice("Creating PDF… this takes a few seconds."); return; }
   if(window.AndroidApp && AndroidApp.printHtml){ AndroidApp.printHtml(html, name); return; }
   const fr=$("repFrame");
   fr.onload=()=>{ try{ const d=fr.contentDocument; const z=Math.min(1,(fr.clientWidth-4)/1080); d.body.style.zoom=z; }catch(_){} };
