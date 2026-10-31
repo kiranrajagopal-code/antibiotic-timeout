@@ -104,6 +104,8 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 
 .banner{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--due-soft);color:var(--ink);border-radius:14px;padding:12px 14px;font-size:14px}
 .banner .btn{padding:9px 12px;font-size:13px}
+.banner.saved{background:var(--ok-soft)}
+.pdfbtns{display:flex;gap:6px;align-items:center}
 .notice{background:var(--accent-soft);color:var(--ink);border-radius:14px;padding:12px 14px;font-size:14px}
 
 .tabs{display:inline-flex;align-self:flex-start;gap:2px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
@@ -268,6 +270,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     <button class="btn" id="clearDemo" type="button">Clear examples</button>
   </div>
   <div class="notice" id="notice" hidden></div>
+  <div class="banner saved" id="pdfDone" hidden><span id="pdfDoneText"></span><span class="pdfbtns"><button class="btn" id="pdfOpen" type="button">Open</button><button class="btn primary" id="pdfShare" type="button">Share</button><button class="btn quiet" id="pdfX" type="button" aria-label="Dismiss">✕</button></span></div>
 
   <nav class="tabs" role="tablist">
     <button class="tab" role="tab" id="tabActive" aria-selected="true" type="button">Active</button>
@@ -337,7 +340,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <button class="btn" type="button" data-days="90">Last 90 days</button>
       <button class="btn" type="button" data-days="all">All data</button>
     </div>
-    <div class="hint" style="margin-top:0">On Android, choose <b>Save as PDF</b> as the printer.</div>
+    <div class="hint" style="margin-top:0">The PDF is saved to your phone's Downloads folder.</div>
     <div class="err" id="pdfErr"></div>
     <div class="actions"><div class="right"><button class="btn" type="button" id="pdfCancel">Cancel</button><button class="btn primary" type="submit" id="pdfSave">Create PDF</button></div></div>
   </form>
@@ -955,6 +958,7 @@ $("pdfForm").addEventListener("submit", e=>{
   const html=buildReport(list, from, to);
   const name="Antibiotic-Timeout-Report_"+f+"_to_"+t;
   $("pdfScrim").hidden=true;
+  if(window.AndroidApp && AndroidApp.exportPdf){ AndroidApp.exportPdf(html, name); showNotice("Creating PDF…"); return; }
   if(window.AndroidApp && AndroidApp.printHtml){ AndroidApp.printHtml(html, name); return; }
   const fr=$("repFrame");
   fr.onload=()=>{ try{ const d=fr.contentDocument; const z=Math.min(1,(fr.clientWidth-4)/1080); d.body.style.zoom=z; }catch(_){} };
@@ -1073,6 +1077,11 @@ function saveError(err){
   if(err && err.name==="QuotaExceededError") return "Storage is full. Back up, then delete old stopped courses.";
   return "Couldn't save just now. Please try again.";
 }
+window.__pdfSaved = file => { $("notice").hidden=true; $("pdfDoneText").textContent = `Report saved to Downloads › AntibioticTimeout › ${file}`; $("pdfDone").hidden=false; window.scrollTo({top:0,behavior:"smooth"}); };
+window.__pdfMsg = t => showNotice(t);
+$("pdfOpen").onclick=()=>{ try{ AndroidApp.openLastPdf(); }catch(_){} };
+$("pdfShare").onclick=()=>{ try{ AndroidApp.shareLastPdf(); }catch(_){} };
+$("pdfX").onclick=()=>{ $("pdfDone").hidden=true; };
 function showNotice(t){ $("notice").textContent=t; $("notice").hidden=false; clearTimeout(showNotice.t); showNotice.t=setTimeout(()=>{$("notice").hidden=true;},8000); }
 
 // refresh times unless a form is open

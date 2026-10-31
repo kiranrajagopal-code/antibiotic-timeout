@@ -7,6 +7,11 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.net.Uri;
 import android.os.Bundle;
+import android.content.ContentValues;
+import android.os.Environment;
+import android.os.ParcelFileDescriptor;
+import android.provider.MediaStore;
+import android.print.PdfExporter;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
 import android.webkit.JavascriptInterface;
@@ -27,6 +32,7 @@ public class MainActivity extends Activity {
     private WebView web;
     private WebView printView; // kept alive until printing finishes
     private String pendingSave;
+    private Uri lastPdf;
     private static final int REQ_SAVE = 11, REQ_OPEN = 12;
 
     /** Called from the page: render report HTML and open Android's print / Save as PDF dialog. */
@@ -86,6 +92,45 @@ public class MainActivity extends Activity {
             });
         }
 
+        /** Save the report as a PDF in Downloads/AntibioticTimeout, no print dialog. Falls back to the print dialog if that fails. */
+        @JavascriptInterface
+        public void exportPdf(final String html, final String name) {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT < 29) { showPrintDialog(html, name); return; }
+                final WebView pv = new WebView(MainActivity.this);
+                printView = pv;
+                pv.setWebViewClient(new WebViewClient() {
+                    boolean done = false;
+                    @Override
+                    public void onPageFinished(WebView view, String url) {
+                        if (done) return; done = true;
+                        view.postDelayed(() -> writePdf(view, html, name), 400);
+                    }
+                });
+                pv.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null);
+            });
+        }
+
+        @JavascriptInterface
+        public void openLastPdf() {
+            runOnUiThread(() -> {
+                if (lastPdf == null) return;
+                Intent i = new Intent(Intent.ACTION_VIEW).setDataAndType(lastPdf, "application/pdf")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                try { startActivity(i); } catch (Exception e) { js("window.__pdfMsg&&__pdfMsg('No PDF viewer found. Open it from Files → Downloads → AntibioticTimeout.')"); }
+            });
+        }
+
+        @JavascriptInterface
+        public void shareLastPdf() {
+            runOnUiThread(() -> {
+                if (lastPdf == null) return;
+                Intent i = new Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, lastPdf)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try { startActivity(Intent.createChooser(i, "Share report")); } catch (Exception ignored) {}
+            });
+        }
+
         @JavascriptInterface
         public void printHtml(final String html, final String name) {
             runOnUiThread(() -> {
@@ -136,6 +181,59 @@ public class MainActivity extends Activity {
         setContentView(web);
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl("file:///android_asset/index.html");
+    }
+
+    private void showPrintDialog(final String html, final String name) {
+        final WebView pv = new WebView(this);
+        printView = pv;
+        pv.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
+                pm.print(name, view.createPrintDocumentAdapter(name), a4());
+            }
+        });
+        pv.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null);
+    }
+
+    private static PrintAttributes a4() {
+        return new PrintAttributes.Builder()
+            .setMediaSize(PrintAttributes.MediaSize.ISO_A4.asLandscape())
+            .setResolution(new PrintAttributes.Resolution("pdf", "pdf", 600, 600))
+            .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+            .build();
+    }
+
+    private void writePdf(WebView view, String html, String name) {
+        final String file = name + ".pdf";
+        Uri uri = null;
+        try {
+            ContentValues v = new ContentValues();
+            v.put(MediaStore.MediaColumns.DISPLAY_NAME, file);
+            v.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
+            v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/AntibioticTimeout");
+            v.put(MediaStore.MediaColumns.IS_PENDING, 1);
+            uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+            if (uri == null) throw new Exception("no uri");
+            final Uri target = uri;
+            final ParcelFileDescriptor pfd = getContentResolver().openFileDescriptor(target, "w");
+            PdfExporter.export(view.createPrintDocumentAdapter(name), a4(), pfd, ok -> {
+                try { pfd.close(); } catch (Exception ignored) {}
+                if (ok) {
+                    ContentValues done = new ContentValues();
+                    done.put(MediaStore.MediaColumns.IS_PENDING, 0);
+                    getContentResolver().update(target, done, null, null);
+                    lastPdf = target;
+                    js("window.__pdfSaved&&__pdfSaved(" + JSONObject.quote(file) + ")");
+                } else {
+                    try { getContentResolver().delete(target, null, null); } catch (Exception ignored) {}
+                    showPrintDialog(html, name);
+                }
+            });
+        } catch (Throwable t) {
+            if (uri != null) { try { getContentResolver().delete(uri, null, null); } catch (Exception ignored) {} }
+            showPrintDialog(html, name);
+        }
     }
 
     private void js(String code) { web.post(() -> web.evaluateJavascript(code, null)); }
