@@ -133,7 +133,7 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--mint-2),var(--accent))}
 .bar .tick{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--ink);opacity:.5}
 .state{display:flex;flex-direction:column;align-items:flex-end;gap:10px;text-align:right}
-.pill{font:700 12.5px/1 var(--font);padding:7px 10px;border-radius:999px;white-space:nowrap}
+.pill{font:700 12.5px/1.2 var(--font);padding:7px 10px;border-radius:999px;max-width:100%}
 .pill.overdue{background:var(--over-soft);color:var(--over)} .pill.pending{background:var(--ok-soft);color:var(--ok)}
 .state .btn{padding:11px 14px;font-size:13.5px}
 .cardbtns{display:flex;gap:4px;align-items:center}
@@ -147,7 +147,11 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .editbtn svg{width:15px;height:15px}
 @media (max-width:640px){
   .course{grid-template-columns:64px 1fr}
-  .state{grid-column:1 / -1;flex-direction:row;justify-content:space-between;align-items:center;text-align:left;border-top:1px solid var(--line);padding-top:12px}
+  .state{grid-column:1 / -1;flex-direction:column;align-items:stretch;gap:12px;text-align:left;border-top:1px solid var(--line);padding-top:12px}
+  .state > div:first-child{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px}
+  .state > div:first-child .meta{margin-top:0!important}
+  .cardbtns{justify-content:space-between}
+  .cardbtns .btn:last-child{flex:1;max-width:240px}
   .bed .v{font-size:23px}
 }
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:18px;padding:32px 20px;text-align:center;color:var(--muted)}
@@ -1078,7 +1082,7 @@ $("q").addEventListener("input", ()=>render());
   const KEY="abxTimeout.courses.v1";
   let listeners=[];
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){ return {}; } }
-  function save(m){ localStorage.setItem(KEY, JSON.stringify(m)); emit(); }
+  function save(m){ const j=JSON.stringify(m); localStorage.setItem(KEY, j); try{ if(window.AndroidApp && AndroidApp.saveSnapshot) AndroidApp.saveSnapshot(j); }catch(_){} emit(); }
   function emit(){ const m=load(); const snap={docs:Object.keys(m).map(id=>({id, data:()=>m[id]}))}; listeners.forEach(f=>f(snap)); }
   const stamp = d => d.updatedAt || d.createdAt || d.startedAt || "";
   const okDate = v => typeof v==="string" && !isNaN(Date.parse(v));
@@ -1096,6 +1100,15 @@ $("q").addEventListener("input", ()=>render());
   }
   const ok = (()=>{ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } })();
   if(!ok){ $("addBtn").disabled=true; showNotice("This browser is blocking storage (private mode?). Open in a normal window to log antibiotics."); return; }
+  // Android safety net: if app storage was emptied, bring data back from the app's own file copy
+  try{
+    if(window.AndroidApp && AndroidApp.loadSnapshot){
+      const cur=localStorage.getItem(KEY), snap=AndroidApp.loadSnapshot();
+      const n = t => { try{ return Object.keys(JSON.parse(t||"{}")).length; }catch(_){ return 0; } };
+      if(snap && n(snap)>0 && n(cur)===0){ localStorage.setItem(KEY, snap); setTimeout(()=>showNotice("Your data was restored from the app's safety copy."),300); }
+      else if(cur && n(cur)>0) AndroidApp.saveSnapshot(cur);
+    }
+  }catch(_){}
   db = {
     collection:()=>({
       add: async data=>{ const m=load(); const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7); data.updatedAt=new Date().toISOString(); m[id]=data; save(m); return {id}; },

@@ -41,6 +41,27 @@ public class MainActivity extends Activity {
             return true;
         }
 
+        /** Safety copy of all data in the app's private storage (also included in Android's own device backup). */
+        @JavascriptInterface
+        public void saveSnapshot(final String json) {
+            try {
+                java.io.File tmp = new java.io.File(getFilesDir(), "courses.json.tmp");
+                try (OutputStream os = new java.io.FileOutputStream(tmp)) { os.write(json.getBytes(StandardCharsets.UTF_8)); }
+                tmp.renameTo(new java.io.File(getFilesDir(), "courses.json"));
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public String loadSnapshot() {
+            java.io.File f = new java.io.File(getFilesDir(), "courses.json");
+            if (!f.exists()) return "";
+            try (InputStream is = new java.io.FileInputStream(f)) {
+                byte[] b = new byte[(int) f.length()]; int off = 0, n;
+                while (off < b.length && (n = is.read(b, off, b.length - off)) > 0) off += n;
+                return new String(b, 0, off, StandardCharsets.UTF_8);
+            } catch (Exception e) { return ""; }
+        }
+
         /** Backup: let the user choose where to save (Drive, Downloads, etc.). */
         @JavascriptInterface
         public void saveFile(final String name, final String text) {
