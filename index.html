@@ -124,6 +124,31 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .bed:active{transform:scale(.97)}
 .bed:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .bed .pen{position:absolute;top:6px;right:6px;width:11px;height:11px;color:rgba(255,255,255,.55)}
+.pt{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.pt::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:4px;border-radius:0 4px 4px 0;background:var(--ok)}
+.pt.overdue::before{background:var(--over)} .pt.alert::before{background:var(--alert)}
+.pt.alert{border:1.5px solid var(--alert)}
+.ptrow{display:grid;grid-template-columns:52px 1fr auto 18px;gap:12px;align-items:center;width:100%;background:none;border:0;padding:10px 12px 10px 14px;text-align:left;color:var(--ink);font-family:var(--font);cursor:pointer}
+.ptrow:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;width:52px;height:52px;border-radius:12px;background:var(--mid);color:#fff;line-height:1}
+.tile .k{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.65);letter-spacing:.03em;max-width:48px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .v{font-size:20px;font-weight:800;margin-top:3px}
+.ptmain{display:flex;flex-direction:column;min-width:0;gap:2px}
+.ptmain b{font-size:15.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ptmain span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ptrow .pill{font-size:12px;padding:6px 9px;white-space:nowrap}
+.pill.alertp{background:var(--alert);color:var(--alert-ink)}
+.chev{width:18px;height:18px;color:var(--muted);transition:transform .2s}
+.pt.open .chev{transform:rotate(180deg)}
+.ptbody{display:flex;flex-direction:column;gap:10px;padding:0 10px 10px}
+.ptbody .course{box-shadow:none;background:var(--surface-2);grid-template-columns:1fr auto}
+.ptbody .course::before{display:none}
+.penbtn{position:absolute;top:10px;right:10px;width:36px;height:36px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--accent);cursor:pointer}
+.penbtn svg{width:16px;height:16px}
+.ptbody .mid{position:relative;padding-right:44px}
+.ptbody .penbtn{top:-4px;right:-4px}
+@media (max-width:640px){.ptbody .course{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){ .pt.alert{animation:pulse 1.8s ease-in-out infinite} }
 .bedlink{font:800 14px var(--font);color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .bed .k{font-size:10.5px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.04em}
 .bed .v{font-weight:800;font-size:26px;line-height:1.05;overflow-wrap:anywhere;letter-spacing:-.02em}
@@ -510,6 +535,8 @@ $("drugList").innerHTML = Object.keys(DRUGS).sort().map(d=>`<option value="${esc
 $("ratList").innerHTML = RATIONALES.map(d=>`<option value="${esc(d)}">`).join("");
 $("orgList").innerHTML = ORGS.map(d=>`<option value="${esc(d)}">`).join("");
 
+const openRows=new Set();
+document.addEventListener("click", e=>{ const b=e.target.closest("[data-row]"); if(!b) return; const k=b.dataset.row; openRows.has(k)?openRows.delete(k):openRows.add(k); render(); });
 let db=null, courses=[], view="active", current=null, deleteArmed=false, editId=null;
 const SCRIMS=["addScrim","toScrim","ackScrim","pdfScrim","dataScrim"];
 
@@ -600,7 +627,7 @@ function render(){
   if (!act.length){
     $("activeView").innerHTML = $("q").value.trim() ? `<div class="empty">No active course matches “${esc($("q").value.trim())}”.</div>` : `<div class="empty">No active antibiotics logged.<br>Use <b>Start antibiotic</b> when a new course begins.</div>`;
   } else {
-    $("activeView").innerHTML = act.map(({c,st,al})=>{
+    const card = ({c,st,al})=>{
       const start = Date.parse(c.startedAt), h = (now-start)/H;
       const endH = Math.max(h, (st.due-start)/H, st.ps ? (st.ps-start)/H : 0);
       const span = Math.max(168, Math.ceil((endH+24)/24)*24);
@@ -616,8 +643,8 @@ function render(){
       const ackTxt = c.ack ? `<div class="meta ackline">${isProph(c)?"24":"72"} h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
       return `<article class="course ${st.s==="overdue"?"overdue":"pending"}${st.pastStop?" paststop":""}${al?" alert":""}">
         ${al?`<div class="alerttag"><span>${tag}</span><button class="btn" type="button" data-ack="${esc(c.id)}">Acknowledge</button></div>`:""}
-        <button class="bed" type="button" data-edit="${esc(c.id)}" aria-label="Edit details for bed ${esc(c.bed)}"><svg class="pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span class="k">${esc(icuName(c)||"Bed")}</span><span class="v">${esc(c.bed)}</span>${c.codeName?`<span class="code">${esc(c.codeName)}</span>`:""}</button>
         <div class="mid">
+          <button class="penbtn" type="button" data-edit="${esc(c.id)}" aria-label="Edit ${esc(c.drug)} details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
           <div class="drug">${esc(c.drug)} ${aware(c.drug)==="NotRec"?"":`<span class="aw ${aware(c.drug)}">${AW_LABEL[aware(c.drug)]}</span>`}</div>
           ${isLinked(c)?`<div class="linkline">${c.linkMode==="add"?`${esc(c.linkDecision)}: added to ${esc(c.linkedFromDrug)}`:`${esc(c.linkDecision||"Switched")} from ${esc(c.linkedFromDrug)}`} · ${fmt(c.startedAt)}</div>`:""}
           <div class="meta"><span class="mono">Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h</span> · ${esc(indLabel(c))} · ${esc(c.site)}</div>
@@ -636,6 +663,27 @@ function render(){
           <div class="cardbtns"><button class="btn ${st.s==="overdue"||st.pastStop?"primary":""}" type="button" data-to="${esc(c.id)}">${st.first?"Record time-out":"Review"}</button></div>
         </div>
       </article>`;
+    };
+    // one compact row per patient (ICU + bed + code name); tap to expand full details
+    const groups=[]; const byKey={};
+    act.forEach(x=>{ const k=[icuName(x.c),x.c.bed,x.c.codeName].join("|").toLowerCase(); if(!byKey[k]){ byKey[k]={k,items:[]}; groups.push(byKey[k]); } byKey[k].items.push(x); });
+    $("activeView").innerHTML = groups.map(g=>{
+      const top=g.items[0], c=top.c;            // items already sorted by urgency
+      const al=g.items.some(x=>x.al), over=g.items.some(x=>x.st.s==="overdue"), ps=g.items.some(x=>x.st.pastStop);
+      const nextDue=Math.min(...g.items.map(x=>x.st.due));
+      const label = al ? "Acknowledge" : over ? "Overdue" : ps ? "Past stop" : "Due "+hrsTxt((nextDue-now)/H);
+      const cls = al ? "alert" : (over||ps) ? "overdue" : "pending";
+      const open = openRows.has(g.k);
+      const drugs = g.items.map(x=>esc(x.c.drug)).join(" · ");
+      return `<section class="pt ${cls}${open?" open":""}">
+        <button class="ptrow" type="button" data-row="${esc(g.k)}" aria-expanded="${open}">
+          <span class="tile"><span class="k">${esc(icuName(c)||"Bed")}</span><span class="v">${esc(c.bed)}</span></span>
+          <span class="ptmain"><b>${esc(c.codeName||"–")}</b><span>${drugs}</span></span>
+          <span class="pill ${cls==="alert"?"alertp":cls}">${label}</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        ${open?`<div class="ptbody">${g.items.map(card).join("")}</div>`:""}
+      </section>`;
     }).join("");
   }
   // stopped

@@ -12,7 +12,7 @@ An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks ev
 - Empirical courses at 72 h and prophylaxis at 24 h without a time-out turn purple and flash until someone acknowledges them
 - Flags courses running past their planned stop date
 - Phone notifications for time-outs, reviews and planned stop dates (works with the app closed and after restart)
-- Edit any entry (bed, code name, antibiotic, indication, dates) by tapping the bed tile, without losing its history
+- Home screen is a compact list, one row per patient (ICU, bed, name, antibiotics, status); tap a row for full details, tap the pencil to edit — history is kept
 - Backup to a file (Drive, WhatsApp, email) and restore by merging
 - Export a PDF report for any date range and ICU (or all ICUs): 12 indicators, breakdowns (AWaRe, indication, source, organisms, rationale, decisions) and a full line listing
 - WHO AWaRe category tag for each antibiotic
