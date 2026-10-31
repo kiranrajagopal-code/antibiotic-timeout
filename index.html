@@ -139,6 +139,10 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .cardbtns{display:flex;gap:4px;align-items:center}
 .cardbtns .btn{white-space:nowrap}
 .cardbtns .editbtn{padding-inline:6px}
+.searchrow{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:0 12px}
+.searchrow svg{width:18px;height:18px;color:var(--muted);flex:none}
+.searchrow input{border:0;background:transparent;padding:12px 0;font:500 16px var(--font);color:var(--ink);width:100%;outline:none}
+.searchrow:focus-within{border-color:var(--accent)}
 .editbtn{display:inline-flex;align-items:center;gap:5px;color:var(--accent)!important}
 .editbtn svg{width:15px;height:15px}
 @media (max-width:640px){
@@ -248,6 +252,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
 
 <div class="wrap">
   <div class="alertbar" id="alertBar" role="alert" hidden><span class="dot"></span><span id="alertText"></span></div>
+  <div class="banner" id="sysBanner" hidden><span id="sysText"></span></div>
   <div class="banner" id="backupBanner" hidden><span id="backupText"></span><button class="btn" id="backupNow" type="button">Back up now</button></div>
 
   <div class="banner" id="demoBanner" hidden>
@@ -261,11 +266,13 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     <button class="tab" role="tab" id="tabDone" aria-selected="false" type="button">Stopped</button>
   </nav>
 
+  <div class="searchrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="q" placeholder="Search bed, code name or antibiotic" autocomplete="off" aria-label="Search"></div>
+
   <section id="activeView" class="list" aria-live="polite"></section>
   <section id="doneView" hidden></section>
 
   <footer>Time-out is due by 72 h (24 h for prophylaxis). Empirical courses at 72 h and prophylaxis at 24 h without a time-out turn purple and flash until someone acknowledges them, and the Android app sends a notification. At a time-out you can add an antibiotic while continuing the current one, or stop the current one and replace it; each new antibiotic gets its own record, linked to the original. Patients are identified by bed number and a code name only; the key linking code names to patients is kept offline by the unit lead. Data is saved on this device only — use Backup regularly. This tool supports, and does not replace, the hospital antibiotic policy.</footer>
-  <div class="credit"><svg viewBox="0 0 108 108" aria-hidden="true"><defs><linearGradient id="mg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E4A4F"/><stop offset=".55" stop-color="#0A2E38"/><stop offset="1" stop-color="#061A22"/></linearGradient><mask id="mk2"><rect width="108" height="108" fill="#fff"/><rect x="50.5" y="33.2" width="7" height="2.6" rx="1.3" fill="#000"/><circle cx="54" cy="55.5" r="9.2" fill="#000"/></mask></defs><rect width="108" height="108" fill="url(#mg2)"/><circle cx="54" cy="54" r="37" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="4"/><path d="M54 17 A37 37 0 1 1 17 54" fill="none" stroke="#5FE3C5" stroke-width="4" stroke-linecap="round"/><g transform="translate(54 55) scale(1.3) translate(-54 -55)"><g mask="url(#mk2)" fill="#fff"><rect x="48" y="31" width="12" height="7" rx="2.2"/><path d="M44.5 37h19a4.5 4.5 0 0 1 4.5 4.5v20a9.5 9.5 0 0 1-9.5 9.5h-9a9.5 9.5 0 0 1-9.5-9.5v-20a4.5 4.5 0 0 1 4.5-4.5z"/></g><rect x="51.8" y="70.5" width="4.4" height="4" rx="1" fill="#fff"/><g stroke="#5FE3C5" stroke-width="2" stroke-linecap="round"><path d="M54 55.5V49.6"/><path d="M54 55.5l4.2 2.3"/></g></g></svg><div><b>Developed by Dr Kiran Rajagopal</b></div></div>
+  <div class="credit"><svg viewBox="0 0 108 108" aria-hidden="true"><defs><linearGradient id="mg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E4A4F"/><stop offset=".55" stop-color="#0A2E38"/><stop offset="1" stop-color="#061A22"/></linearGradient><mask id="mk2"><rect width="108" height="108" fill="#fff"/><rect x="50.5" y="33.2" width="7" height="2.6" rx="1.3" fill="#000"/><circle cx="54" cy="55.5" r="9.2" fill="#000"/></mask></defs><rect width="108" height="108" fill="url(#mg2)"/><circle cx="54" cy="54" r="37" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="4"/><path d="M54 17 A37 37 0 1 1 17 54" fill="none" stroke="#5FE3C5" stroke-width="4" stroke-linecap="round"/><g transform="translate(54 55) scale(1.3) translate(-54 -55)"><g mask="url(#mk2)" fill="#fff"><rect x="48" y="31" width="12" height="7" rx="2.2"/><path d="M44.5 37h19a4.5 4.5 0 0 1 4.5 4.5v20a9.5 9.5 0 0 1-9.5 9.5h-9a9.5 9.5 0 0 1-9.5-9.5v-20a4.5 4.5 0 0 1 4.5-4.5z"/></g><rect x="51.8" y="70.5" width="4.4" height="4" rx="1" fill="#fff"/><g stroke="#5FE3C5" stroke-width="2" stroke-linecap="round"><path d="M54 55.5V49.6"/><path d="M54 55.5l4.2 2.3"/></g></g></svg><div><b>Developed by Dr Kiran Rajagopal</b><span>Version 2.0</span></div></div>
 </div>
 
 <!-- Start / edit antibiotic sheet -->
@@ -475,7 +482,7 @@ const SCRIMS=["addScrim","toScrim","ackScrim","pdfScrim","dataScrim"];
 
 /* ---------- rules ---------- */
 const isProph = c => c.indication==="Prophylaxis";
-const indLabel = c => c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : c.indication;
+const indLabel = c => c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : (c.indication || "–");
 const deadlineH = c => isProph(c) ? 24 : 72;
 const plannedStop = c => c.plannedDays ? Date.parse(c.startedAt) + c.plannedDays*D : null;
 const isLinked = c => !!c.linkedFrom;
@@ -544,17 +551,19 @@ function cultureTxt(cx){
   return `Culture: ${cx.organism} (${cx.specimen})${cx.sus?" · "+(cx.susFor?cx.susFor+" ":"")+cx.sus.toLowerCase():""}`;
 }
 
+const matchQ = c => { const q=($("q").value||"").trim().toLowerCase(); if(!q) return true;
+  return [c.bed,c.codeName,c.drug,c.linkedFromDrug].some(v=>String(v||"").toLowerCase().includes(q)); };
 function render(){
   const now = Date.now();
-  syncAlarms(); stats(now); backupNudge();
+  syncAlarms(); stats(now); backupNudge(); sysNudge();
   $("demoBanner").hidden = !courses.some(c=>c.demo);
-  const act = courses.filter(c=>c.status!=="stopped").map(c=>({c, st:status(c,now), al:needsAck(c,now)}))
+  const act = courses.filter(c=>c.status!=="stopped" && matchQ(c)).map(c=>({c, st:status(c,now), al:needsAck(c,now)}))
     .sort((a,b)=> (b.al-a.al) || ((b.st.s==="overdue")-(a.st.s==="overdue")) || (b.st.pastStop-a.st.pastStop) || a.st.due-b.st.due);
-  const nAl = act.filter(x=>x.al).length;
+  const nAl = courses.filter(c=>needsAck(c,now)).length;
   $("alertBar").hidden = !nAl;
   $("alertText").textContent = (nAl===1 ? "1 course needs" : nAl+" courses need")+" acknowledgement";
   if (!act.length){
-    $("activeView").innerHTML = `<div class="empty">No active antibiotics logged.<br>Use <b>Start antibiotic</b> when a new course begins.</div>`;
+    $("activeView").innerHTML = $("q").value.trim() ? `<div class="empty">No active course matches “${esc($("q").value.trim())}”.</div>` : `<div class="empty">No active antibiotics logged.<br>Use <b>Start antibiotic</b> when a new course begins.</div>`;
   } else {
     $("activeView").innerHTML = act.map(({c,st,al})=>{
       const start = Date.parse(c.startedAt), h = (now-start)/H;
@@ -584,7 +593,7 @@ function render(){
             ${st.ps?`<span class="tick" style="left:${pct((st.ps-start)/H)};background:var(--over);opacity:.9"></span>`:""}
           </div>
           <div class="meta">${last}${cx?" · "+esc(cultureTxt(cx)):""}${c.demo?' · <i>example</i>':''}</div>
-          ${st.ps?(st.pastStop?`<div><span class="stoptag">Past planned stop (${c.plannedDays} d, ${fdate(st.ps)}) — stop or extend</span></div>`:`<div class="meta">Planned stop ${fdate(st.ps)} (${c.plannedDays} d)</div>`):""}
+          ${st.ps?(st.pastStop?`<div><span class="stoptag">Past planned stop (${+c.plannedDays||0} d, ${fdate(st.ps)}) — stop or extend</span></div>`:`<div class="meta">Planned stop ${fdate(st.ps)} (${+c.plannedDays||0} d)</div>`):""}
           ${ackTxt}
         </div>
         <div class="state">
@@ -595,7 +604,7 @@ function render(){
     }).join("");
   }
   // stopped
-  const done = courses.filter(c=>c.status==="stopped").sort((a,b)=>Date.parse(b.stoppedAt)-Date.parse(a.stoppedAt));
+  const done = courses.filter(c=>c.status==="stopped" && matchQ(c)).sort((a,b)=>Date.parse(b.stoppedAt)-Date.parse(a.stoppedAt));
   $("doneView").innerHTML = !done.length ? `<div class="empty">No stopped courses yet.</div>` :
     `<div class="tablewrap"><table><thead><tr><th>Bed</th><th>Code name</th><th>Antibiotic</th><th>Indication</th><th>Started</th><th>Stopped</th><th>Days</th><th>1st time-out</th><th>Outcome</th><th></th></tr></thead><tbody>${
       done.map(c=>{
@@ -621,7 +630,7 @@ $("tabActive").onclick=()=>setView("active"); $("tabDone").onclick=()=>setView("
 /* ---------- start / edit sheet ---------- */
 function openAdd(c){
   editId = c ? c.id : null;
-  $("addForm").reset(); $("addErr").textContent="";
+  $("addForm").reset(); $("addErr").textContent=""; $("addForm").dataset.warned="";
   $("addTitle").textContent = c ? "Edit details" : "Start antibiotic";
   $("addSub").textContent = c ? `${who(c)} · ${c.drug}. Time-out history is kept.` : "Log each antibiotic separately. Time-out is due by 72 h (24 h for prophylaxis).";
   $("addSave").textContent = c ? "Save changes" : "Start time-out clock";
@@ -655,14 +664,25 @@ $("addForm").addEventListener("submit", async e=>{
   if($("fInd").value==="Other" && !indOther) return err("Specify the indication.");
   const plannedDays = planV ? parseInt(planV,10) : null;
   if(planV && !(plannedDays>=1 && plannedDays<=42)) return err("Planned duration must be 1–42 days.");
+  if (editId){
+    const c0 = courses.find(x=>x.id===editId);
+    if (c0 && c0.status==="stopped" && start.getTime() >= Date.parse(c0.stoppedAt)) return err("Start time must be before the stop time ("+fmt(c0.stoppedAt)+").");
+    if (c0 && (c0.reviews||[]).some(r=>Date.parse(r.at) < start.getTime())) return err("Start time can't be after a recorded time-out.");
+  }
+  // soft warnings: tap Save again to confirm
+  const warnKey = [bed,codeName,drug,startV].join("|");
+  let warn = "";
+  if (Date.now()-start.getTime() > 30*D) warn = `Start date is ${Math.floor((Date.now()-start.getTime())/D)} days ago. Check the date, or tap Save again to keep it.`;
+  const dup = courses.find(x=>x.id!==editId && x.status!=="stopped" && String(x.bed).toLowerCase()===bed.toLowerCase() && String(x.drug).toLowerCase()===drug.toLowerCase());
+  if (!warn && dup) warn = `Bed ${dup.bed} already has active ${dup.drug} (started ${fmt(dup.startedAt)}). Tap Save again to add it anyway.`;
+  if (warn && $("addForm").dataset.warned !== warnKey){ $("addForm").dataset.warned = warnKey; return err(warn); }
+  $("addForm").dataset.warned = "";
   const by=$("fBy").value.trim(); setLastBy(by);
   const data = { bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, indOther: $("fInd").value==="Other" ? indOther : "", site:$("fSite").value, rationale,
     plannedDays, cultureSent:$("fCult").checked, startedAt:start.toISOString() };
   $("addSave").disabled=true;
   try{
     if (editId){
-      const c = courses.find(x=>x.id===editId);
-      if (c && (c.reviews||[]).some(r=>Date.parse(r.at) < start.getTime())) { $("addSave").disabled=false; return err("Start time can't be after a recorded time-out."); }
       await db.doc("courses/"+editId).update(data);
     } else {
       await db.collection("courses").add(Object.assign(data, { by, status:"active", reviews:[], createdAt:new Date().toISOString() }));
@@ -774,6 +794,8 @@ $("toForm").addEventListener("submit", async e=>{
   const at = new Date($("toAt").value);
   if(isNaN(at)) return err("Enter the time-out time.");
   if(at.getTime() < Date.parse(c.startedAt)) return err("Time-out can't be before the start time.");
+  const prevRev = (c.reviews||[])[(c.reviews||[]).length-1];
+  if(prevRev && at.getTime() < Date.parse(prevRev.at)) return err("Time-out can't be before the previous review ("+fmt(prevRev.at)+").");
   if(at.getTime() > Date.now()+5*60e3) return err("Time-out can't be in the future.");
   const sw = SWITCH.includes(dec), mode = swModeVal(), stopCur = sw && mode==="replace";
   if(sw && !mode) return err(`Choose whether to keep ${c.drug} or stop it.`);
@@ -834,13 +856,23 @@ $("ackForm").addEventListener("submit", async e=>{
   const by=$("ackBy").value.trim();
   if(!by) return $("ackErr").textContent="Enter your initials.";
   setLastBy(by);
+  $("ackSave").disabled=true;
   try{ await db.doc("courses/"+ackId).update({ack:{by, at:new Date().toISOString()}}); $("ackScrim").hidden=true; ackId=null; }
   catch(err){ $("ackErr").textContent=saveError(err); }
+  finally{ $("ackSave").disabled=false; }
 });
 
 /* ---------- backup & restore ---------- */
 const BK="abxTimeout.lastBackup";
 const lastBackup = () => { try{ return parseInt(localStorage.getItem(BK)||"0",10)||0; }catch(_){ return 0; } };
+function sysNudge(){
+  let t="";
+  try{ if(window.AndroidApp && AndroidApp.notificationsAllowed && !AndroidApp.notificationsAllowed()) t="Notifications are off, so you won't be alerted at 72 h. Turn them on in Settings → Apps → Antibiotic Time-out → Notifications."; }catch(_){}
+  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone = window.navigator.standalone===true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  if(!t && ios && !standalone && /^https?:$/.test(location.protocol)) t="Tap Share → Add to Home Screen to install the app. Data kept in a Safari tab can be cleared by iPhone if unused for a week.";
+  $("sysBanner").hidden=!t; $("sysText").textContent=t;
+}
 function backupNudge(){
   const real = courses.filter(c=>!c.demo).length, lb = lastBackup();
   const stale = real && (!lb || Date.now()-lb > 7*D);
@@ -986,7 +1018,7 @@ function buildReport(list, from, to){
       <td>${esc(drugs)}${isLinked(c)?`<div class="sm">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
       <td>${esc(indLabel(c).replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
       <td>${cxT}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
-      <td>${c.ack?esc(c.ack.by)+" "+dd(c.ack.at):"–"}</td><td class="n${over?" late":""}">${c.plannedDays?c.plannedDays+" d":"–"}</td>
+      <td>${c.ack?esc(c.ack.by)+" "+dd(c.ack.at):"–"}</td><td class="n${over?" late":""}">${c.plannedDays?(+c.plannedDays||0)+" d":"–"}</td>
       <td>${c.status==="stopped"?"Stopped "+dd(c.stoppedAt):"Active"}</td><td class="n">${dur.toFixed(1)}</td></tr>`;
   }).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>Antibiotic Time-out Report</title><style>
@@ -1040,6 +1072,8 @@ setInterval(()=>{ if(SCRIMS.every(i=>$(i).hidden)) render(); }, 30e3);
 
 render();
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) { navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+try{ if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(_){}
+$("q").addEventListener("input", ()=>render());
 (function(){
   const KEY="abxTimeout.courses.v1";
   let listeners=[];
@@ -1047,6 +1081,19 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) { navig
   function save(m){ localStorage.setItem(KEY, JSON.stringify(m)); emit(); }
   function emit(){ const m=load(); const snap={docs:Object.keys(m).map(id=>({id, data:()=>m[id]}))}; listeners.forEach(f=>f(snap)); }
   const stamp = d => d.updatedAt || d.createdAt || d.startedAt || "";
+  const okDate = v => typeof v==="string" && !isNaN(Date.parse(v));
+  function clean(d){
+    if(!d || typeof d!=="object" || !okDate(d.startedAt) || typeof d.drug!=="string" || !d.drug) return null;
+    const out = Object.assign({}, d);
+    ["bed","codeName","drug","indication","indOther","site","rationale","by","linkedFromDrug","linkDecision","linkMode"].forEach(k=>{ if(out[k]!=null) out[k]=String(out[k]).slice(0,200); });
+    out.bed = out.bed || "?"; out.codeName = out.codeName || "";
+    if(!["Empirical","Targeted (culture-directed)","Prophylaxis","Other"].includes(out.indication)) out.indication = out.indication ? "Other" : "Empirical", out.indOther = out.indOther || d.indication || "";
+    out.site = out.site || "Other";
+    out.plannedDays = out.plannedDays ? (Math.min(42, Math.max(1, parseInt(out.plannedDays,10)||0)) || null) : null;
+    out.status = out.status==="stopped" && okDate(out.stoppedAt) ? "stopped" : "active";
+    out.reviews = Array.isArray(out.reviews) ? out.reviews.filter(r=>r && okDate(r.at) && typeof r.decision==="string") : [];
+    return out;
+  }
   const ok = (()=>{ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } })();
   if(!ok){ $("addBtn").disabled=true; showNotice("This browser is blocking storage (private mode?). Open in a normal window to log antibiotics."); return; }
   db = {
@@ -1062,7 +1109,7 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) { navig
     importAll: incoming=>{
       const m=load(); let added=0, updated=0, kept=0;
       Object.keys(incoming).forEach(id=>{
-        const d=incoming[id]; if(!d || typeof d!=="object" || !d.startedAt) return;
+        const d=clean(incoming[id]); if(!d) return;
         if(!m[id]){ m[id]=d; added++; }
         else if(stamp(d) > stamp(m[id])){ m[id]=d; updated++; }
         else kept++;

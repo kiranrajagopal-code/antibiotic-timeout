@@ -100,6 +100,8 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setAllowFileAccess(true);
+        // Respect large system fonts, but cap them so cards and buttons do not break.
+        if (s.getTextZoom() > 120) s.setTextZoom(120);
         web.addJavascriptInterface(new Bridge(), "AndroidApp");
         web.setWebViewClient(new WebViewClient() {
             @Override
