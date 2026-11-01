@@ -17,4 +17,5 @@ keywords:
 version: "2.25"
 date-released: "2026-11-01"
 license: MIT
+doi: "10.5281/zenodo.23855568"
 repository-code: "https://github.com/kiranrajagopal-code/antibiotic-timeout"

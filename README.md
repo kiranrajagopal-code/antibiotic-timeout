@@ -1,6 +1,7 @@
 <img src="assets-store/icon-512.png" width="96" alt="App icon">
 
 # ICU Antibiotic Time-out
+[![DOI](https://zenodo.org/badge/1438844683.svg)](https://doi.org/10.5281/zenodo.23855568)
 
 An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks every antibiotic course from its start and flags the 72-hour time-out review (24 hours for prophylaxis).
 
@@ -22,6 +23,9 @@ An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks ev
 - Identify patients by bed number and a code name only. Never enter real names or IP numbers.
 
 This tool supports, and does not replace, the hospital antibiotic policy.
+
+## How to cite
+Rajagopal K. *Antibiotic Time-out* [software]. Zenodo; 2026. https://doi.org/10.5281/zenodo.23855568
 
 ## Author
 Dr. Kiran Rajagopal — Head, Department of Critical Care Medicine, Sree Gokulam Medical College, Trivandrum
