@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Antibiotic Time-out"
+abstract: "ICU antimicrobial stewardship app that tracks each antibiotic course from its start, flags the 72-hour time-out review (24 hours for prophylaxis), records decisions, culture results and antibiotic switches, and exports a PDF audit report."
+type: software
+authors:
+  - family-names: Rajagopal
+    given-names: Kiran
+    orcid: "https://orcid.org/0000-0002-4613-2696"
+    affiliation: "Dept. of Critical Care Medicine, Sree Gokulam Medical College, Trivandrum"
+keywords:
+  - antimicrobial stewardship
+  - antibiotic time-out
+  - intensive care unit
+  - critical care
+  - AWaRe
+version: "2.25"
+date-released: "2026-11-01"
+license: MIT
+repository-code: "https://github.com/kiranrajagopal-code/antibiotic-timeout"
