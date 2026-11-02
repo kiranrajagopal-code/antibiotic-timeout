@@ -613,7 +613,7 @@ function syncAlarms(){
 }
 
 /* ---------- culture isolates (one or more organisms) ---------- */
-const SPECIMENS = ["Blood","ETA / BAL","Urine","Pus / tissue","Drain fluid","CSF","Line tip","Fluid NGS","NGS","Other"];
+const SPECIMENS = ["Blood","ETA / BAL","Urine","Pus / tissue","Drain fluid","CSF","Line tip","FLU NGS","NGS","Other"];
 const isolatesOf = cx => !cx ? [] : Array.isArray(cx.isolates) && cx.isolates.length ? cx.isolates : (cx.organism ? [{specimen:cx.specimen, organism:cx.organism, sus:cx.sus}] : []);
 function cultureFor(isos, drug){
   const isolates = isos.map(i=>({specimen:i.specimen, organism:i.organism, sus:(i.susBy||{})[drug]||""}));
