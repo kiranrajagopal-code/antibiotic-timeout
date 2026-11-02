@@ -347,7 +347,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <button class="btn quiet" type="button" id="fIsoAdd" style="align-self:flex-start;padding-left:0">+ Add another organism</button>
     </div>
     <div class="row2">
-      <div class="field"><label for="fPlan">Planned duration (days)</label><input type="number" id="fPlan" min="1" max="42" step="1" placeholder="e.g. 7"></div>
+      <div class="field"><label for="fPlan">Planned duration (days)<span id="fPlanReq" hidden> — required</span></label><input type="number" id="fPlan" min="1" max="42" step="1" placeholder="e.g. 7"></div>
       <div class="field"><label for="fBy">Your initials</label><input type="text" id="fBy" maxlength="8" autocomplete="off"></div>
     </div>
     <label class="check"><input type="checkbox" id="fCult" checked> Cultures sent before the first dose</label>
@@ -550,7 +550,8 @@ $("cxIsoAdd").onclick=()=>{ const c=courses.find(x=>x.id===current); isoRow($("c
 const cultureProven = () => $("fInd").value==="Targeted (culture-directed)" || /culture[- ]proven/i.test($("fRat").value);
 function syncCxSec(){ $("fCxSec").hidden = !cultureProven(); if(!$("fCxSec").hidden && !$("fIsos").children.length){ const dr=formDrugs(); isoRow($("fIsos"), null, dr.length?dr:["This antibiotic"]); } }
 const indLabel = c => c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : (c.indication || "–");
-const deadlineH = c => isProph(c) ? 24 : 72;
+const isTargetPlan = c => c.indication==="Targeted (culture-directed)" && +c.plannedDays>0;
+const deadlineH = c => isProph(c) ? 24 : isTargetPlan(c) ? +c.plannedDays*24 : 72;
 const plannedStop = c => c.plannedDays ? Date.parse(c.startedAt) + c.plannedDays*D : null;
 const isLinked = c => !!c.linkedFrom;
 
@@ -567,7 +568,8 @@ function status(c, now){
   else if (c.reviewDueAt) due = Date.parse(c.reviewDueAt);
   else { due = start + deadlineH(c)*H; first=true; }
   const ps = plannedStop(c);
-  return {s: now < due ? "pending" : "overdue", due, first, pastStop: !!ps && now > ps, ps};
+  const tgtFirst = first && isTargetPlan(c);
+  return {s: now < due ? "pending" : "overdue", due, first, pastStop: !tgtFirst && !!ps && now > ps, ps: tgtFirst ? null : ps};
 }
 
 /* ---------- dashboard ---------- */
@@ -602,11 +604,12 @@ function syncAlarms(){
     if (st.first){
       if (c.indication==="Empirical"){ if(!c.ack) list.push({id:"emp-"+c.id, at:st.due, title:"Empirical antibiotic at 72 h — "+w, text:`${c.drug} started empirically 72 h ago with no time-out. Open the app to acknowledge and review.`}); }
       else if (isProph(c)){ if(!c.ack) list.push({id:"pro-"+c.id, at:st.due, title:"Prophylaxis past 24 h — "+w, text:`${c.drug} prophylaxis has run 24 h. Stop, or record why it continues.`}); }
+      else if (isTargetPlan(c)) list.push({id:"tgt-"+c.id, at:st.due, title:"Targeted course complete — "+w, text:`${c.drug}: planned ${+c.plannedDays}-day targeted course ends now. Stop, or extend with a reason.`});
       else list.push({id:"due-"+c.id, at:st.due, title:"Antibiotic time-out due — "+w, text:`${c.drug}: 72 h reached with no time-out recorded.`});
     } else {
       list.push({id:"rev-"+c.id+"-"+st.due, at:st.due, title:"Antibiotic review due — "+w, text:`${c.drug}: planned review is due now.`});
     }
-    if (st.ps) list.push({id:"stp-"+c.id+"-"+st.ps, at:st.ps, title:"Planned stop date reached — "+w, text:`${c.drug}: planned ${c.plannedDays}-day course ends now. Stop, or extend with a reason.`});
+    if (st.ps && !(st.first && isTargetPlan(c))) list.push({id:"stp-"+c.id+"-"+st.ps, at:st.ps, title:"Planned stop date reached — "+w, text:`${c.drug}: planned ${c.plannedDays}-day course ends now. Stop, or extend with a reason.`});
   });
   const json=JSON.stringify(list);
   if(json!==lastAlarmJson){ lastAlarmJson=json; try{ AndroidApp.setAlarms(json); }catch(_){} }
@@ -665,8 +668,13 @@ function render(){
       const span = Math.max(168, Math.ceil((endH+24)/24)*24);
       const pct = x => Math.min(100, Math.max(0,x)/span*100).toFixed(2)+"%";
       let label, detail;
+      const tgt = st.first && isTargetPlan(c);
       const kind = st.first ? "Time-out" : "Review";
-      if (st.s==="pending"){ label = kind+" in "+hrsTxt((st.due-now)/H); detail = "Due "+fmt(new Date(st.due).toISOString()); }
+      if (tgt){
+        if (st.s==="pending"){ label = "Course ends in "+hrsTxt((st.due-now)/H); detail = `Day ${+c.plannedDays} on ${fmt(new Date(st.due).toISOString())}`; }
+        else { label = "Course ended "+hrsTxt((now-st.due)/H)+" ago"; detail = "Stop, or extend with a reason"; }
+      }
+      else if (st.s==="pending"){ label = kind+" in "+hrsTxt((st.due-now)/H); detail = "Due "+fmt(new Date(st.due).toISOString()); }
       else { label = kind+" overdue "+hrsTxt((now-st.due)/H); detail = st.first ? (isProph(c)?"Prophylaxis past 24 h":"No time-out by 72 h") : "Planned review missed"; }
       const revs = c.reviews||[], lr = revs[revs.length-1];
       const last = lr ? `Last: ${esc(lr.decision)} · ${fmt(lr.at)}` : (c.cultureSent ? "Cultures sent before first dose" : "No cultures before first dose");
@@ -703,7 +711,10 @@ function render(){
       const top=g.items[0], c=top.c;            // items already sorted by urgency
       const al=g.items.some(x=>x.al), over=g.items.some(x=>x.st.s==="overdue"), ps=g.items.some(x=>x.st.pastStop);
       const nextDue=Math.min(...g.items.map(x=>x.st.due));
-      const label = al ? "Acknowledge" : over ? "Overdue" : ps ? "Past stop" : "Due "+hrsTxt((nextDue-now)/H);
+      const nx = g.items.reduce((a,x)=>x.st.due<a.st.due?x:a);
+      const overTgt = g.items.some(x=>x.st.s==="overdue" && x.st.first && isTargetPlan(x.c));
+      const label = al ? "Acknowledge" : over ? (overTgt && !g.items.some(x=>x.st.s==="overdue" && !(x.st.first && isTargetPlan(x.c))) ? "Course ended" : "Overdue") : ps ? "Past stop"
+        : (nx.st.first && isTargetPlan(nx.c) ? "Ends " : "Due ")+hrsTxt((nextDue-now)/H);
       const cls = al ? "alert" : (over||ps) ? "overdue" : "pending";
       const open = openRows.has(g.k);
       const drugs = g.items.map(x=>esc(x.c.drug)).join(" · ");
@@ -764,7 +775,7 @@ function openAdd(c){
     const own = !c.culture.susFor || c.culture.susFor===c.drug;
     isolatesOf(c.culture).forEach(i=>isoRow($("fIsos"), {specimen:i.specimen, organism:i.organism, susBy: own&&i.sus?{[c.drug]:i.sus}:{}}, [c.drug]));
   }
-  syncCxSec();
+  syncCxSec(); $("fPlanReq").hidden = $("fInd").value!=="Targeted (culture-directed)";
   $("addScrim").hidden=false; if(!c) $("fBed").focus();
 }
 $("addBtn").onclick = ()=>{ if(db) openAdd(null); };
@@ -772,7 +783,7 @@ $("addCancel").onclick = ()=>{ $("addScrim").hidden=true; editId=null; };
 $("fRat").addEventListener("input", syncCxSec);
 $("fIcu").addEventListener("change", ()=>{ $("fIcuOtherF").hidden = $("fIcu").value!=="Other"; if($("fIcu").value==="Other") $("fIcuOther").focus(); });
 $("fRat").addEventListener("change", syncCxSec);
-$("fInd").addEventListener("change", ()=>{ syncCxSec();
+$("fInd").addEventListener("change", ()=>{ syncCxSec(); $("fPlanReq").hidden = $("fInd").value!=="Targeted (culture-directed)";
   if($("fInd").value==="Prophylaxis" && !$("fRat").value) $("fRat").value="Surgical prophylaxis";
   $("fIndOtherF").hidden = $("fInd").value!=="Other"; if($("fInd").value==="Other") $("fIndOther").focus();
 });
@@ -799,6 +810,7 @@ $("addForm").addEventListener("submit", async e=>{
   if($("fInd").value==="Other" && !indOther) return err("Specify the indication.");
   const plannedDays = planV ? parseInt(planV,10) : null;
   if(planV && !(plannedDays>=1 && plannedDays<=42)) return err("Planned duration must be 1–42 days.");
+  if($("fInd").value==="Targeted (culture-directed)" && !plannedDays) return err("Enter the planned duration for a targeted antibiotic — the alert comes at the end of it.");
   if (editId){
     const c0 = courses.find(x=>x.id===editId);
     if (c0 && c0.status==="stopped" && start.getTime() >= Date.parse(c0.stoppedAt)) return err("Start time must be before the stop time ("+fmt(c0.stoppedAt)+").");
@@ -956,6 +968,7 @@ $("toForm").addEventListener("submit", async e=>{
   }
   const swPlanV=$("swPlan").value.trim(), swPlan = swPlanV?parseInt(swPlanV,10):null;
   if(swPlanV && !(swPlan>=1&&swPlan<=42)) return err("Planned duration must be 1–42 days.");
+  if(sw && $("swInd").value==="Targeted (culture-directed)" && !swPlan) return err("Enter the planned duration for the targeted antibiotic.");
   const toPlanV=$("toPlan").value.trim(), toPlan = toPlanV?parseInt(toPlanV,10):null;
   if(dec==="Continue" && toPlanV && !(toPlan>=1&&toPlan<=42)) return err("Planned duration must be 1–42 days.");
   const by=$("toBy").value.trim(); setLastBy(by);
@@ -974,7 +987,7 @@ $("toForm").addEventListener("submit", async e=>{
       await db.collection("courses").add({ icu:c.icu||"", icuOther:c.icuOther||"", bed:c.bed, codeName:c.codeName, drug:r.drug, aware:aware(r.drug), indication:$("swInd").value,
         site:c.site, rationale:r.rationale, plannedDays:swPlan, cultureSent:c.cultureSent, startedAt:at.toISOString(), by,
         status:"active", reviews:[], createdAt:new Date().toISOString(), culture,
-        linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, linkMode:stopCur?"replace":"add", reviewDueAt:new Date(at.getTime()+days*D).toISOString() });
+        linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, linkMode:stopCur?"replace":"add", reviewDueAt:new Date(at.getTime()+($("swInd").value==="Targeted (culture-directed)" && swPlan ? swPlan : days)*D).toISOString() });
     }
     $("toScrim").hidden=true; current=null;
   }
@@ -1145,7 +1158,7 @@ function buildReport(list, from, to, icuTitle){
     ["Courses started", n, `${orig.length} new · ${linked.length} after a switch`],
     ["Empirical", emp.length, pct(emp.length,n)+" of courses"],
     ["Cultures before 1st dose", pct(cult,orig.length), cult+" of "+orig.length+" new courses"],
-    ["Time-out on time", pct(onTime,elig.length), onTime+" of "+elig.length+" · 72 h (24 h prophylaxis)"],
+    ["Time-out on time", pct(onTime,elig.length), onTime+" of "+elig.length+" · 72 h empirical, 24 h prophylaxis, end of plan targeted"],
     ["Median time to 1st time-out", fh(median(reviewed)), reviewed.length+" reviewed"],
     ["Alerts acknowledged", pct(acked.length,alertable.length), acked.length+" of "+alertable.length+" empirical / prophylaxis alerts"],
     ["Prophylaxis beyond 24 h", pct(prophLong.length,proph.length), prophLong.length+" of "+proph.length+" prophylaxis courses"],
@@ -1200,7 +1213,7 @@ function buildReport(list, from, to, icuTitle){
   <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Organisms isolated",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${n} courses)</h2>
   <table class="list"><thead><tr><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
-  <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h, or 24 h for prophylaxis, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
+  <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h for empirical, 24 h for prophylaxis, or by the end of the planned course for targeted, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
   </body></html>`;
 }
 
