@@ -147,6 +147,8 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .ptbody .course::before{display:none}
 .penbtn{position:absolute;top:10px;right:10px;width:36px;height:36px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--accent);cursor:pointer}
 .penbtn svg{width:16px;height:16px}
+.ptactions{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;padding:2px 2px 4px}
+.ptactions .btn{padding:10px 14px;font-size:13.5px}
 .ptbody .mid{position:relative;padding-right:44px}
 .ptbody .penbtn{top:-4px;right:-4px}
 @media (max-width:640px){.ptbody .course{grid-template-columns:1fr}}
@@ -356,6 +358,29 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
   </form>
 </div>
 
+<!-- Discharge / stop all sheet -->
+<div class="scrim" id="dcScrim" hidden>
+  <form class="sheet" id="dcForm" novalidate>
+    <div><h2>Discharge / stop all</h2><div class="sub" id="dcSub"></div></div>
+    <div class="field"><span class="lab">Reason</span>
+      <div class="chips dec" id="dcWhy">
+        <label class="chip"><input type="radio" name="dcw" value="Discharged from ICU"><span>Discharged from ICU</span></label>
+        <label class="chip"><input type="radio" name="dcw" value="Transferred out"><span>Transferred out</span></label>
+        <label class="chip"><input type="radio" name="dcw" value="All antibiotics stopped"><span>All antibiotics stopped</span></label>
+        <label class="chip"><input type="radio" name="dcw" value="Died"><span>Died</span></label>
+        <label class="chip"><input type="radio" name="dcw" value="LAMA / DAMA"><span>LAMA / DAMA</span></label>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="dcAt">Date and time</label><input type="datetime-local" id="dcAt"></div>
+      <div class="field"><label for="dcBy">Your initials</label><input type="text" id="dcBy" maxlength="8" autocomplete="off"></div>
+    </div>
+    <div class="hint">All active antibiotics for this patient close with this reason. History is kept and appears in the report.</div>
+    <div class="err" id="dcErr"></div>
+    <div class="actions"><div class="right"><button class="btn" type="button" id="dcCancel">Cancel</button><button class="btn primary" type="submit" id="dcSave">Close all</button></div></div>
+  </form>
+</div>
+
 <!-- Acknowledge sheet -->
 <div class="scrim" id="ackScrim" hidden>
   <form class="sheet" id="ackForm" novalidate>
@@ -534,7 +559,9 @@ $("orgList").innerHTML = ORGS.map(d=>`<option value="${esc(d)}">`).join("");
 const openRows=new Set();
 document.addEventListener("click", e=>{ const b=e.target.closest("[data-row]"); if(!b) return; const k=b.dataset.row; openRows.has(k)?openRows.delete(k):openRows.add(k); render(); });
 let db=null, courses=[], view="active", current=null, deleteArmed=false, editId=null;
-const SCRIMS=["addScrim","toScrim","ackScrim","pdfScrim","dataScrim"];
+const SCRIMS=["addScrim","toScrim","ackScrim","pdfScrim","dataScrim","dcScrim"];
+const ptKey = c => [icuName(c),c.bed,c.codeName].join("|").toLowerCase();
+const LEFT = "Left ICU";
 
 /* ---------- rules ---------- */
 const isProph = c => c.indication==="Prophylaxis";
@@ -591,6 +618,7 @@ function stats(now){
     if (isLinked(c)) return;
     const s = Date.parse(c.startedAt); if (s < since) return;
     const lim = s + deadlineH(c)*H, r = (c.reviews||[])[0];
+    if (r && r.decision===LEFT && Date.parse(r.at) <= lim) return;
     if (r){ n++; if (Date.parse(r.at) <= lim) ok++; }
     else if (c.status==="stopped"){ n++; if (Date.parse(c.stoppedAt) <= lim) ok++; }
     else if (now > lim) n++;
@@ -732,7 +760,8 @@ function render(){
           <span class="pill ${cls==="alert"?"alertp":cls}">${label}</span>
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
-        ${open?`<div class="ptbody">${g.items.map(card).join("")}</div>`:""}
+        ${open?`<div class="ptbody">${g.items.map(card).join("")}
+          <div class="ptactions"><button class="btn" type="button" data-addfor="${esc(c.id)}">+ Add antibiotic</button><button class="btn quiet" type="button" data-leave="${esc(g.k)}">Discharge / stop all</button></div></div>`:""}
       </section>`;
     }).join("");
   }
@@ -761,11 +790,11 @@ function setView(v){
 $("tabActive").onclick=()=>setView("active"); $("tabDone").onclick=()=>setView("done");
 
 /* ---------- start / edit sheet ---------- */
-function openAdd(c){
+function openAdd(c, preset){
   editId = c ? c.id : null;
   $("addForm").reset(); $("addErr").textContent=""; $("addForm").dataset.warned="";
   $("addTitle").textContent = c ? "Edit details" : "Start antibiotic";
-  $("addSub").textContent = c ? `${who(c)} · ${c.drug}. Time-out history is kept.` : "Log each antibiotic separately. Time-out is due by 72 h (24 h for prophylaxis).";
+  $("addSub").textContent = c ? `${who(c)} · ${c.drug}. Time-out history is kept.` : "Time-out is due by 72 h for empirical, 24 h for prophylaxis, and at the end of the planned days for targeted.";
   $("addSave").textContent = c ? "Save changes" : "Start time-out clock";
   if (c){
     $("fIcu").value=c.icu||"CCU"; $("fIcuOther").value=c.icuOther||"";
@@ -773,7 +802,9 @@ function openAdd(c){
     $("fDrug").value=c.drug||""; $("fInd").value=c.indication; $("fIndOther").value=c.indOther||""; $("fSite").value=c.site; $("fRat").value=c.rationale||"";
     $("fPlan").value=c.plannedDays||""; $("fBy").value=c.by||lastBy(); $("fCult").checked=!!c.cultureSent;
   } else { $("fCult").checked=true; $("fStart").value = toLocalInput(new Date()); $("fBy").value=lastBy();
-    const li=lastIcu(); if(li){ $("fIcu").value=li.icu||"CCU"; $("fIcuOther").value=li.icuOther||""; } }
+    const li=lastIcu(); if(li){ $("fIcu").value=li.icu||"CCU"; $("fIcuOther").value=li.icuOther||""; }
+    if (preset){ $("fIcu").value=preset.icu||"CCU"; $("fIcuOther").value=preset.icuOther||""; $("fBed").value=preset.bed||""; $("fCode").value=preset.codeName||""; $("fSite").value=preset.site||"Pneumonia";
+      $("addSub").textContent = `Another antibiotic for ${who(preset)}.`; } }
   $("fIcuOtherF").hidden = $("fIcu").value!=="Other";
   $("fIndOtherF").hidden = $("fInd").value!=="Other";
   // culture fields (prefill on edit)
@@ -783,9 +814,10 @@ function openAdd(c){
     isolatesOf(c.culture).forEach(i=>isoRow($("fIsos"), {specimen:i.specimen, organism:i.organism, susBy: own&&i.sus?{[c.drug]:i.sus}:{}}, [c.drug]));
   }
   syncCxSec(); $("fPlanReq").hidden = $("fInd").value!=="Targeted (culture-directed)";
-  $("addScrim").hidden=false; if(!c) $("fBed").focus();
+  $("addScrim").hidden=false; if(!c) (preset ? $("fDrug") : $("fBed")).focus();
 }
 $("addBtn").onclick = ()=>{ if(db) openAdd(null); };
+document.addEventListener("click", e=>{ const b=e.target.closest("[data-addfor]"); if(!b) return; const c=courses.find(x=>x.id===b.dataset.addfor); if(c) openAdd(null, c); });
 $("addCancel").onclick = ()=>{ $("addScrim").hidden=true; editId=null; };
 $("fRat").addEventListener("input", syncCxSec);
 $("fIcu").addEventListener("change", ()=>{ $("fIcuOtherF").hidden = $("fIcu").value!=="Other"; if($("fIcu").value==="Other") $("fIcuOther").focus(); });
@@ -840,7 +872,14 @@ $("addForm").addEventListener("submit", async e=>{
   $("addSave").disabled=true;
   try{
     if (editId){
+      const c0 = courses.find(x=>x.id===editId), oldKey = c0 ? ptKey(c0) : null;
       await db.doc("courses/"+editId).update(data);
+      const idPatch = {icu:data.icu, icuOther:data.icuOther, bed:data.bed, codeName:data.codeName};
+      if (oldKey && oldKey !== ptKey(Object.assign({}, c0, idPatch))){
+        const sibs = courses.filter(x=>x.id!==editId && ptKey(x)===oldKey);
+        for (const x of sibs) await db.doc("courses/"+x.id).update(idPatch);
+        if (sibs.length) showNotice(`Patient details updated on all ${sibs.length+1} antibiotics for this patient.`);
+      }
     } else {
       await db.collection("courses").add(Object.assign({}, data, { by, status:"active", reviews:[], createdAt:new Date().toISOString() }));
       for (const r of extra){
@@ -910,7 +949,8 @@ function openTimeout(c){
   $("swAddTxt").textContent = `Keep ${c.drug}, add new`;
   $("swRepTxt").textContent = `Stop ${c.drug}, replace`;
   $("cxIsos").innerHTML="";
-  $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3; $("toPlan").value = c.plannedDays||"";
+  $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3;
+  if (isTargetPlan(c)){ const left=Math.ceil((plannedStop(c)-Date.now())/D); if(left>=1) $("toDays").value=Math.min(14,left); } $("toPlan").value = c.plannedDays||"";
   $("toBy").value = lastBy();
   const prevCx = [...(c.reviews||[])].reverse().map(r=>r.culture).find(Boolean) || c.culture;
   if (prevCx){ const r=document.querySelector(`input[name="cx"][value="${prevCx.result}"]`); if(r) r.checked=true;
@@ -1011,6 +1051,33 @@ $("toForm").addEventListener("submit", async e=>{
   finally{ $("toSave").disabled=false; }
 });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ SCRIMS.forEach(i=>$(i).hidden=true); $("repView").hidden=true; current=null; ackId=null; editId=null; } });
+
+/* ---------- discharge / stop all ---------- */
+let dcKey=null;
+document.addEventListener("click", e=>{ const b=e.target.closest("[data-leave]"); if(!b) return;
+  dcKey=b.dataset.leave; const items=courses.filter(c=>c.status!=="stopped" && ptKey(c)===dcKey); if(!items.length) return;
+  $("dcForm").reset(); $("dcErr").textContent=""; $("dcAt").value=toLocalInput(new Date()); $("dcBy").value=lastBy();
+  $("dcSub").textContent = `${who(items[0])} · ${items.map(c=>c.drug).join(", ")}`; $("dcScrim").hidden=false; });
+$("dcCancel").onclick=()=>{ $("dcScrim").hidden=true; dcKey=null; };
+$("dcForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const why=(document.querySelector('input[name="dcw"]:checked')||{}).value; if(!why) return $("dcErr").textContent="Choose a reason.";
+  const at=new Date($("dcAt").value); if(isNaN(at)) return $("dcErr").textContent="Enter the date and time.";
+  if(at.getTime()>Date.now()+5*60e3) return $("dcErr").textContent="Time can't be in the future.";
+  const items=courses.filter(c=>c.status!=="stopped" && ptKey(c)===dcKey);
+  const early=items.find(c=>at.getTime()<Date.parse(c.startedAt)); if(early) return $("dcErr").textContent=`${early.drug} started after this time (${fmt(early.startedAt)}).`;
+  const by=$("dcBy").value.trim(); setLastBy(by);
+  const dec = why==="All antibiotics stopped" ? "Stop" : LEFT;
+  $("dcSave").disabled=true;
+  try{
+    for(const c of items){
+      const rev={at:at.toISOString(), decision:dec, reasons:[why], note:"", by, hoursFromStart:(at-Date.parse(c.startedAt))/H};
+      await db.doc("courses/"+c.id).update({status:"stopped", stoppedAt:at.toISOString(), stopReason:why, reviews:[...(c.reviews||[]), rev]});
+    }
+    $("dcScrim").hidden=true; openRows.delete(dcKey); dcKey=null; showNotice(`${items.length} antibiotic${items.length===1?"":"s"} closed — ${why}.`);
+  }catch(er){ $("dcErr").textContent=saveError(er); }
+  finally{ $("dcSave").disabled=false; }
+});
 
 /* ---------- acknowledge ---------- */
 let ackId=null;
@@ -1144,7 +1211,8 @@ function buildReport(list, from, to, icuTitle){
   const emp=list.filter(c=>c.indication==="Empirical");
   const cult=orig.filter(c=>c.cultureSent).length;
   const firstH=c=>{const r=(c.reviews||[])[0]; return r?(Date.parse(r.at)-Date.parse(c.startedAt))/H:null;};
-  const elig=orig.filter(c=>firstH(c)!=null || c.status==="stopped" || now-Date.parse(c.startedAt)>deadlineH(c)*H);
+  const leftEarly=c=>{ const r=(c.reviews||[])[0]; return r && r.decision===LEFT && (Date.parse(r.at)-Date.parse(c.startedAt))<=deadlineH(c)*H; };
+  const elig=orig.filter(c=>!leftEarly(c)).filter(c=>firstH(c)!=null || c.status==="stopped" || now-Date.parse(c.startedAt)>deadlineH(c)*H);
   const onTime=elig.filter(c=>{const s=Date.parse(c.startedAt), lim=deadlineH(c)*H, r=(c.reviews||[])[0];
     return r ? Date.parse(r.at)-s<=lim : (c.status==="stopped" && Date.parse(c.stoppedAt)-s<=lim);}).length;
   const reviewed=orig.map(firstH).filter(x=>x!=null);
