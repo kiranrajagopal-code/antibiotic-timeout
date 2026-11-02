@@ -15,7 +15,7 @@ An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks ev
 - Phone notifications for time-outs, reviews and planned stop dates (works with the app closed and after restart)
 - Home screen is a compact list, one row per patient (ICU, bed, name, antibiotics, status); tap a row for full details, tap the pencil to edit — history is kept
 - Backup to a file (Drive, WhatsApp, email) and restore by merging
-- Export a PDF report for any date range and ICU (or all ICUs): 12 indicators, breakdowns (AWaRe, indication, source, organisms, rationale, decisions) and a full line listing
+- Export a PDF report for any date range and ICU (or all ICUs): 12 indicators, breakdowns (AWaRe, indication, source, organisms, rationale, decisions) and a line listing grouped by patient (one serial number per patient)
 - WHO AWaRe category tag for each antibiotic
 
 ## Data and privacy

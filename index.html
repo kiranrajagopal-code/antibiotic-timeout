@@ -1184,7 +1184,12 @@ function buildReport(list, from, to, icuTitle){
     ["Ran past planned stop", pct(overran.length,planned.length), overran.length+" of "+planned.length+" with a planned duration"],
     ["Median duration (stopped)", fd(median(dot)), stopped.length+" stopped · "+switches+" switches"]
   ];
-  const rows=list.map(c=>{
+  // group courses by patient (ICU + bed + code name): one serial number per patient
+  const pts=[]; const pk={};
+  list.forEach(c=>{ const k=[icuName(c),c.bed,c.codeName].join("|").toLowerCase(); if(!pk[k]){ pk[k]={items:[]}; pts.push(pk[k]); } pk[k].items.push(c); });
+  pts.forEach(p=>p.items.sort((a,b)=>Date.parse(a.startedAt)-Date.parse(b.startedAt)));
+  pts.sort((a,b)=>Date.parse(a.items[0].startedAt)-Date.parse(b.items[0].startedAt));
+  const row=(c,lead)=>{
     const revs=c.reviews||[];
     const drugs=[...new Set([...revs.map(r=>r.fromDrug).filter(Boolean), c.drug])].join(" → ");
     const fH=firstH(c), lim=deadlineH(c);
@@ -1193,13 +1198,16 @@ function buildReport(list, from, to, icuTitle){
     const cxT = !cx ? "–" : cx.result==="Positive" ? isolatesOf(cx).map(i=>`${esc(i.organism)} (${esc(i.specimen)})${i.sus&&(!cx.susFor||cx.susFor===c.drug)?" · "+esc(String(i.sus)[0]):""}`).join("; ") : esc(cx.result);
     const ps=plannedStop(c), over = ps && (c.status==="stopped"?Date.parse(c.stoppedAt):now) > ps+12*H;
     const dec = revs.map(r=>esc(r.decision)+(r.switchedTo?" → "+esc(r.switchedTo.join(", ")):"")).join("; ")||"–";
-    return `<tr><td>${esc(icuName(c)||"–")}</td><td class="b">${esc(c.bed)}</td><td>${esc(c.codeName||"–")}</td><td class="n">${dd(c.startedAt)}</td>
+    return `<tr${lead?' class="pfirst"':''}>${lead||""}<td class="n">${dd(c.startedAt)}</td>
       <td>${esc(drugs)}${isLinked(c)?`<div class="sm">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
       <td>${esc(indLabel(c).replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
       <td>${cxT}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
       <td>${c.ack?esc(c.ack.by)+" "+dd(c.ack.at):"–"}</td><td class="n${over?" late":""}">${c.plannedDays?(+c.plannedDays||0)+" d":"–"}</td>
       <td>${c.status==="stopped"?"Stopped "+dd(c.stoppedAt):"Active"}</td><td class="n">${dur.toFixed(1)}</td></tr>`;
-  }).join("");
+  };
+  const rows=pts.map((p,i)=>{ const c=p.items[0], rs=p.items.length;
+    const lead=`<td class="b c pt" rowspan="${rs}">${i+1}</td><td class="pt" rowspan="${rs}">${esc(icuName(c)||"–")}</td><td class="b pt" rowspan="${rs}">${esc(c.bed)}</td><td class="pt" rowspan="${rs}">${esc(c.codeName||"–")}</td>`;
+    return p.items.map((x,j)=>row(x, j===0?lead:"")).join(""); }).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>Antibiotic Time-out Report</title><style>
   @page{size:A4 landscape;margin:10mm}
   *{box-sizing:border-box} body{font-family:"IBM Plex Sans",Arial,sans-serif;color:#15201D;font-size:10px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1217,6 +1225,8 @@ function buildReport(list, from, to, icuTitle){
   .list{font-size:8.6px} .list th{background:#1F5D4C;color:#fff;text-align:left;font-size:7.8px;letter-spacing:.03em;text-transform:uppercase;padding:4px 4px}
   .list td{padding:3px 4px;border-bottom:1px solid #E3E9E7;vertical-align:top} .list tr:nth-child(even) td{background:#F5F8F7}
   .list thead{display:table-header-group} .list tr{break-inside:avoid}
+  .list tr:nth-child(even) td{background:transparent} .list td.pt{background:#EEF5F3!important;vertical-align:top;border-right:1px solid #DCE5E5}
+  .list tr.pfirst td{border-top:2px solid #1F5D4C}
   .b{font-weight:700} .n{white-space:nowrap;font-variant-numeric:tabular-nums} .c{text-align:center} .late{color:#B42318;font-weight:700} .sm{color:#56665F;font-size:8px}
   footer{margin-top:10px;color:#56665F;font-size:8.5px;border-top:1px solid #D3DDDA;padding-top:6px}
   @media screen{body{width:1080px;padding:16px}}
@@ -1227,8 +1237,8 @@ function buildReport(list, from, to, icuTitle){
   <div class="kpis">${kpis.map(([l,v,s2])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${esc(l)}</div><div class="s">${esc(s2)}</div></div>`).join("")}</div>
   <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n)}${tbl("ICU",count(list,c=>icuName(c)||"Not recorded"),n)}${tbl("Indication",count(list,indLabel),n)}${tbl("Suspected source",count(list,c=>c.site),n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
   <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Organisms isolated",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
-  <h2>Line listing (${n} courses)</h2>
-  <table class="list"><thead><tr><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
+  <h2>Line listing (${pts.length} patient${pts.length===1?"":"s"}, ${n} antibiotic course${n===1?"":"s"})</h2>
+  <table class="list"><thead><tr><th>S.No</th><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
   <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h for empirical, 24 h for prophylaxis, or by the end of the planned course for targeted, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
   </body></html>`;
 }
