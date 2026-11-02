@@ -412,6 +412,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
         <label class="chip"><input type="radio" name="dec" value="De-escalate"><span>De-escalate</span></label>
         <label class="chip"><input type="radio" name="dec" value="IV to oral"><span>IV → oral</span></label>
         <label class="chip"><input type="radio" name="dec" value="Escalate"><span>Escalate</span></label>
+        <label class="chip"><input type="radio" name="dec" value="New infection"><span>New infection</span></label>
         <label class="chip"><input type="radio" name="dec" value="Stop"><span>Stop</span></label>
       </div>
     </div>
@@ -445,6 +446,11 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <div class="row2">
         <div class="field"><label for="swInd">New antibiotic is</label><select id="swInd"><option>Targeted (culture-directed)</option><option>Empirical</option></select></div>
         <div class="field"><label for="swPlan">Planned duration (days)</label><input type="number" id="swPlan" min="1" max="42" step="1" placeholder="e.g. 7"></div>
+      </div>
+      <div id="swEmp" hidden>
+        <div class="field"><label for="swSite">New suspected source</label><select id="swSite"><option>Pneumonia</option><option>Blood / line (CLABSI)</option><option>Urine (CAUTI / UTI)</option><option>Intra-abdominal</option><option>Skin / soft tissue</option><option>CNS</option><option>Sepsis, source unknown</option><option>Other</option></select></div>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="swCult" checked> Fresh cultures sent before the first dose</label>
+        <div class="hint" style="margin-top:6px">The new empirical antibiotic gets its own 72 h time-out clock.</div>
       </div>
     </div>
 
@@ -502,9 +508,10 @@ const REASONS = {
   "De-escalate":["Culture: narrower drug covers organism","Cultures negative, clinically improving","MRSA ruled out","Source controlled"],
   "IV to oral":["Afebrile, haemodynamically stable","Tolerating enteral feeds","Oral option covers organism"],
   "Escalate":["Clinical worsening","Resistant organism isolated","New source of infection"],
+  "New infection":["New infection suspected","New fever / sepsis","New site (VAP, CLABSI, CAUTI, SSI)","Clinical worsening"],
   "Stop":["Course complete","Infection unlikely / alternative diagnosis","Cultures negative, clinically improving","Source controlled","Contaminant / colonisation only","Prophylaxis complete","Goals of care changed"]
 };
-const SWITCH = ["De-escalate","IV to oral","Escalate"];
+const SWITCH = ["De-escalate","IV to oral","Escalate","New infection"];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const aware = d => DRUGS[d] || "Other";
@@ -873,7 +880,7 @@ function syncToForm(){
   const cx = (document.querySelector('input[name="cx"]:checked')||{}).value;
   $("cxPos").hidden = cx!=="Positive";
   if (cx==="Positive" && !$("cxIsos").children.length){ const c=courses.find(x=>x.id===current); isoRow($("cxIsos"), null, [c?c.drug:"Current antibiotic"]); }
-  if (sw) $("swInd").value = cx==="Positive" ? "Targeted (culture-directed)" : "Empirical";
+  $("swEmp").hidden = !(sw && $("swInd").value==="Empirical");
 }
 function fillReasons(dec){
   $("toReasons").innerHTML = (REASONS[dec]||[]).map((r,i)=>`<label class="chip"><input type="checkbox" name="rsn" value="${esc(r)}" id="rsn${i}"><span>${esc(r)}</span></label>`).join("")
@@ -883,10 +890,15 @@ $("toDec").addEventListener("change", e=>{ if(e.target.name==="dec"){
   const d=e.target.value; fillReasons(d);
   if(SWITCH.includes(d) && !$("swRows").children.length) swRow();
   // Escalate: no default (add-on or replace are both common). De-escalate / IV to oral: default replace.
-  document.querySelectorAll('input[name="swMode"]').forEach(r=>r.checked = d!=="Escalate" && r.value==="replace");
+  // Escalate / New infection: no default (add-on or replace are both common). De-escalate / IV to oral: default replace.
+  document.querySelectorAll('input[name="swMode"]').forEach(r=>r.checked = !["Escalate","New infection"].includes(d) && r.value==="replace");
+  const cxNow=(document.querySelector('input[name="cx"]:checked')||{}).value;
+  $("swInd").value = d==="New infection" ? "Empirical" : (cxNow==="Positive" ? "Targeted (culture-directed)" : "Empirical");
+  if (d==="New infection"){ const c=courses.find(x=>x.id===current); $("swSite").value = c&&c.site || "Pneumonia"; $("swCult").checked=true; }
   syncToForm(); } });
 $("cxRes").addEventListener("change", syncToForm);
 $("swMode").addEventListener("change", syncToForm);
+$("swInd").addEventListener("change", syncToForm);
 
 function openTimeout(c){
   current = c.id; deleteArmed=false; $("toDelete").textContent="Delete entry"; $("toDelete").classList.remove("danger");
@@ -984,10 +996,14 @@ $("toForm").addEventListener("submit", async e=>{
   try{
     await db.doc("courses/"+c.id).update(patch);
     for (const r of newOnes){
-      await db.collection("courses").add({ icu:c.icu||"", icuOther:c.icuOther||"", bed:c.bed, codeName:c.codeName, drug:r.drug, aware:aware(r.drug), indication:$("swInd").value,
-        site:c.site, rationale:r.rationale, plannedDays:swPlan, cultureSent:c.cultureSent, startedAt:at.toISOString(), by,
-        status:"active", reviews:[], createdAt:new Date().toISOString(), culture,
-        linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, linkMode:stopCur?"replace":"add", reviewDueAt:new Date(at.getTime()+($("swInd").value==="Targeted (culture-directed)" && swPlan ? swPlan : days)*D).toISOString() });
+      const emp = $("swInd").value==="Empirical";
+      const nc = { icu:c.icu||"", icuOther:c.icuOther||"", bed:c.bed, codeName:c.codeName, drug:r.drug, aware:aware(r.drug), indication:$("swInd").value,
+        site: emp ? $("swSite").value : c.site, rationale:r.rationale, plannedDays:swPlan, cultureSent: emp ? $("swCult").checked : c.cultureSent,
+        startedAt:at.toISOString(), by, status:"active", reviews:[], createdAt:new Date().toISOString(),
+        linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, linkMode:stopCur?"replace":"add" };
+      if (emp){ if (dec!=="New infection") nc.culture = culture; }   // empirical: own 72 h clock and alert
+      else { nc.culture = culture; nc.reviewDueAt = new Date(at.getTime()+(swPlan || days)*D).toISOString(); }
+      await db.collection("courses").add(nc);
     }
     $("toScrim").hidden=true; current=null;
   }

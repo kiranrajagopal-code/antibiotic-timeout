@@ -8,8 +8,8 @@ An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks ev
 ## What it does
 - Log each antibiotic: ICU (CCU, NSICU or other, named), bed number, code name, start time, indication (empirical / targeted / prophylaxis / other, specified), rationale, suspected source, planned duration, cultures sent before first dose
 - Time-out deadline: 72 h for empirical, 24 h for prophylaxis; targeted (culture-directed) courses alert at the end of their planned duration
-- Record the decision at time-out: continue, de-escalate, IV to oral, escalate or stop, with reasons and the culture result — one or more organisms, each with specimen (incl. FLU NGS / NGS) and sensitive/resistant
-- Change antibiotics in the same window: keep the current antibiotic and add new ones, or stop it and replace — each new antibiotic is linked to the original record
+- Record the decision at time-out: continue, de-escalate, IV to oral, escalate, new infection or stop, with reasons and the culture result — one or more organisms, each with specimen (incl. FLU NGS / NGS) and sensitive/resistant
+- Change antibiotics in the same window: keep the current antibiotic and add new ones, or stop it and replace — each new antibiotic is linked to the original record. A new empirical antibiotic (e.g. for a new infection during targeted therapy) gets its own 72 h clock, source and culture status
 - Empirical courses at 72 h and prophylaxis at 24 h without a time-out turn purple and flash until someone acknowledges them
 - Flags courses running past their planned stop date
 - Phone notifications for time-outs, reviews and planned stop dates (works with the app closed and after restart)
