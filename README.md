@@ -8,7 +8,7 @@ An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks ev
 ## What it does
 - Log each antibiotic: ICU (CCU, NSICU or other, named), bed number, code name, start time, indication (empirical / targeted / prophylaxis / other, specified), rationale, suspected source, planned duration, cultures sent before first dose
 - Time-out deadline: 72 h for empirical, 24 h for prophylaxis; targeted (culture-directed) courses alert at the end of their planned duration
-- Record the decision at time-out: continue, de-escalate, IV to oral, escalate, new infection or stop, with reasons and the culture result — one or more organisms, each with specimen (incl. FLU NGS / NGS) and sensitive/resistant
+- Record the decision at time-out: continue, de-escalate, IV to oral, escalate, new infection or stop, with reasons and diagnostics — Culture, FilmArray and NGS recorded independently (any one is enough), each with site (Blood, BAL, CSF, Fluid or other), organisms, sensitive/resistant for culture and resistance genes for FilmArray/NGS
 - Change antibiotics in the same window: keep the current antibiotic and add new ones, or stop it and replace — each new antibiotic is linked to the original record. A new empirical antibiotic (e.g. for a new infection during targeted therapy) gets its own 72 h clock, source and culture status
 - Empirical courses at 72 h and prophylaxis at 24 h without a time-out turn purple and flash until someone acknowledges them
 - Flags courses running past their planned stop date
@@ -17,7 +17,7 @@ An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks ev
 - In a patient's row: + Add antibiotic (patient details pre-filled) and Discharge / stop all (discharged, transferred, died, LAMA/DAMA or all stopped)
 - Backup to a file (Drive, WhatsApp, email) and restore by merging
 - Export a PDF report for any date range and ICU (or all ICUs): 12 indicators, breakdowns (AWaRe, indication, source, organisms, rationale, decisions) and a line listing grouped by patient (one serial number per patient)
-- WHO AWaRe category tag for each antibiotic
+- WHO AWaRe category tag for each antibiotic; antifungals and antivirals included, with fungi and viruses in the organism list
 
 ## Data and privacy
 - Data is saved on the phone only. It is not sent anywhere and is not shared between devices. Use Backup regularly.

@@ -163,7 +163,8 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .mono{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink)}
 .aw{font:700 11px/1 var(--font);padding:4px 8px;border-radius:999px;letter-spacing:.02em}
 .aw.Access{background:var(--ok-soft);color:var(--ok)} .aw.Watch{background:var(--due-soft);color:var(--due)}
-.aw.Reserve{background:var(--over-soft);color:var(--over)} .aw.NotRec,.aw.Antifungal,.aw.Other{background:var(--surface-2);color:var(--muted)}
+.aw.Reserve{background:var(--over-soft);color:var(--over)} .aw.NotRec,.aw.Other{background:var(--surface-2);color:var(--muted)}
+.aw.Antifungal{background:#F3ECE1;color:#7A5A2E} .aw.Antiviral{background:#E5EEF9;color:#2D5C93}
 .bar{position:relative;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;max-width:440px;margin:2px 0}
 .bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--mint-2),var(--accent))}
 .bar .tick{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--ink);opacity:.5}
@@ -253,6 +254,10 @@ textarea{resize:vertical;min-height:60px}
 .isos{display:flex;flex-direction:column;gap:10px}
 .iso{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface)}
 .isohead{display:flex;align-items:center;justify-content:space-between}
+.thead{display:flex;align-items:center;justify-content:space-between;margin-bottom:-4px}
+.thead .btn{padding:4px 6px;font-size:13px}
+.tests-hint{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-bottom:-6px}
+.tblock{border-top:0;padding-top:4px}
 .isohead .btn{padding:4px 6px;font-size:13px}
 .swrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
 @media (max-width:480px){.swrow{grid-template-columns:1fr auto}.swrow .rf{grid-column:1 / -1;grid-row:2}}
@@ -445,18 +450,49 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <div class="chips" id="toReasons"></div>
     </div>
 
-    <div class="sec">
-      <div class="field"><span class="lab">Culture result</span>
-        <div class="chips" id="cxRes">
-          <label class="chip"><input type="radio" name="cx" value="Pending"><span>Pending</span></label>
-          <label class="chip"><input type="radio" name="cx" value="No growth"><span>No growth</span></label>
-          <label class="chip"><input type="radio" name="cx" value="Positive"><span>Positive</span></label>
-          <label class="chip"><input type="radio" name="cx" value="Not sent"><span>Not sent</span></label>
+    <div class="tests-hint">Diagnostics — mark any one or more (culture, FilmArray, NGS). Add the rest at a later review when results arrive.</div>
+    <div class="sec tblock" data-t="cx">
+      <div class="thead"><span class="lab">Culture</span><button class="btn quiet tclear" type="button" data-t="cx" hidden>Clear</button></div>
+      <div class="chips" id="cxRes"><label class="chip"><input type="radio" name="cx" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="cx" value="No growth"><span>No growth</span></label><label class="chip"><input type="radio" name="cx" value="Positive"><span>Positive</span></label></div>
+      <div id="cxMore" hidden>
+        <div class="row2">
+          <div class="field"><label for="cxSpec">Site</label><select id="cxSpec"><option>Blood</option><option>BAL</option><option>ETA</option><option>Urine</option><option>CSF</option><option>Fluid</option><option>Pus / tissue</option><option>Line tip</option><option>Other</option></select></div>
+          <div class="field" id="cxSpecOF" hidden><label for="cxSpecO">Other specimen</label><input type="text" id="cxSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
+        </div>
+        <div id="cxPos" hidden>
+          <div class="isos" id="cxIsos"></div>
+          <button class="btn quiet" type="button" id="cxIsoAdd" style="align-self:flex-start;padding-left:0;margin-top:8px">+ Add another organism</button>
         </div>
       </div>
-      <div id="cxPos" hidden>
-        <div class="isos" id="cxIsos"></div>
-        <button class="btn quiet" type="button" id="cxIsoAdd" style="align-self:flex-start;padding-left:0;margin-top:8px">+ Add another organism</button>
+    </div>
+    <div class="sec tblock" data-t="fa">
+      <div class="thead"><span class="lab">FilmArray</span><button class="btn quiet tclear" type="button" data-t="fa" hidden>Clear</button></div>
+      <div class="chips" id="faRes"><label class="chip"><input type="radio" name="fa" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="fa" value="Not detected"><span>Not detected</span></label><label class="chip"><input type="radio" name="fa" value="Detected"><span>Detected</span></label></div>
+      <div id="faMore" hidden>
+        <div class="row2">
+          <div class="field"><label for="faSpec">Site</label><select id="faSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>Other</option></select></div>
+          <div class="field" id="faSpecOF" hidden><label for="faSpecO">Other specimen</label><input type="text" id="faSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
+        </div>
+        <div id="faPos" hidden>
+          <div class="isos" id="faIsos"></div>
+          <button class="btn quiet" type="button" id="faIsoAdd" style="align-self:flex-start;padding-left:0;margin-top:8px">+ Add another organism</button>
+          <div class="field"><label for="faGenes">Resistance genes (optional)</label><input type="text" id="faGenes" list="geneList" maxlength="80" autocomplete="off" placeholder="e.g. KPC, NDM, CTX-M, mecA"></div>
+        </div>
+      </div>
+    </div>
+    <div class="sec tblock" data-t="ngs">
+      <div class="thead"><span class="lab">NGS</span><button class="btn quiet tclear" type="button" data-t="ngs" hidden>Clear</button></div>
+      <div class="chips" id="ngsRes"><label class="chip"><input type="radio" name="ngs" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="ngs" value="Not detected"><span>Not detected</span></label><label class="chip"><input type="radio" name="ngs" value="Detected"><span>Detected</span></label></div>
+      <div id="ngsMore" hidden>
+        <div class="row2">
+          <div class="field"><label for="ngsSpec">Site</label><select id="ngsSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>Other</option></select></div>
+          <div class="field" id="ngsSpecOF" hidden><label for="ngsSpecO">Other specimen</label><input type="text" id="ngsSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
+        </div>
+        <div id="ngsPos" hidden>
+          <div class="isos" id="ngsIsos"></div>
+          <button class="btn quiet" type="button" id="ngsIsoAdd" style="align-self:flex-start;padding-left:0;margin-top:8px">+ Add another organism</button>
+          <div class="field"><label for="ngsGenes">Resistance genes (optional)</label><input type="text" id="ngsGenes" list="geneList" maxlength="80" autocomplete="off" placeholder="e.g. KPC, NDM, CTX-M, mecA"></div>
+        </div>
       </div>
     </div>
 
@@ -505,6 +541,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
 <datalist id="drugList"></datalist>
 <datalist id="ratList"></datalist>
 <datalist id="orgList"></datalist>
+<datalist id="geneList"><option value="KPC"><option value="NDM"><option value="OXA-48-like"><option value="VIM"><option value="IMP"><option value="CTX-M"><option value="mecA/C (MRSA)"><option value="vanA/B (VRE)"><option value="mcr"></datalist>
 
 <script>
 (function(){
@@ -519,15 +556,21 @@ const DRUGS = {
   "Colistin":"Reserve","Polymyxin B":"Reserve","Tigecycline":"Reserve","Ceftazidime-avibactam":"Reserve","Aztreonam-avibactam":"Reserve","Aztreonam":"Reserve",
   "Linezolid":"Reserve","Fosfomycin (IV)":"Reserve","Daptomycin":"Reserve","Cefiderocol":"Reserve","Minocycline (IV)":"Reserve",
   "Cefoperazone-sulbactam":"NotRec",
-  "Fluconazole":"Antifungal","Voriconazole":"Antifungal","Caspofungin":"Antifungal","Micafungin":"Antifungal","Amphotericin B (liposomal)":"Antifungal"
+  "Fluconazole":"Antifungal","Voriconazole":"Antifungal","Caspofungin":"Antifungal","Micafungin":"Antifungal","Amphotericin B (liposomal)":"Antifungal",
+  "Anidulafungin":"Antifungal","Posaconazole":"Antifungal","Isavuconazole":"Antifungal","Itraconazole":"Antifungal","Amphotericin B (deoxycholate)":"Antifungal","Amphotericin B":"Antifungal","Flucytosine":"Antifungal",
+  "Oseltamivir":"Antiviral","Acyclovir":"Antiviral","Valacyclovir":"Antiviral","Ganciclovir":"Antiviral","Valganciclovir":"Antiviral","Foscarnet":"Antiviral","Remdesivir":"Antiviral","Baloxavir":"Antiviral","Favipiravir":"Antiviral"
 };
-const AW_LABEL = {Access:"Access",Watch:"Watch",Reserve:"Reserve",NotRec:"Unclassified",Antifungal:"Antifungal",Other:"Other"};
+const AW_LABEL = {Access:"Access",Watch:"Watch",Reserve:"Reserve",NotRec:"Unclassified",Antifungal:"Antifungal",Antiviral:"Antiviral",Other:"Other"};
 const RATIONALES = ["Septic shock, source unknown","Severe community-acquired pneumonia","Hospital-acquired / ventilator-associated pneumonia",
   "Prior MDR colonisation or infection","Antibiotics in last 90 days","Immunocompromised / neutropenic","Per local antibiogram",
-  "Culture-proven, per susceptibility","Microbiology / ID advice","Surgical prophylaxis","Procedure prophylaxis"];
+  "Culture-proven, per susceptibility","Microbiology / ID advice","Surgical prophylaxis","Procedure prophylaxis",
+  "Influenza / viral pneumonia (PCR / FilmArray)","Suspected invasive candidiasis","Suspected invasive aspergillosis / mucormycosis","CMV / HSV reactivation","Pre-emptive antifungal"];
 const ORGS = ["Escherichia coli","Klebsiella pneumoniae","Pseudomonas aeruginosa","Acinetobacter baumannii","Enterobacter spp.","Proteus spp.",
   "Serratia spp.","Stenotrophomonas maltophilia","Staphylococcus aureus (MSSA)","MRSA","Coagulase-negative staphylococci","Enterococcus faecalis",
-  "Enterococcus faecium (VRE)","Streptococcus pneumoniae","Candida albicans","Candida auris","Candida (non-albicans)","Mixed growth"];
+  "Enterococcus faecium (VRE)","Streptococcus pneumoniae","Haemophilus influenzae","Burkholderia pseudomallei","Mycoplasma pneumoniae","Legionella pneumophila","Chlamydophila pneumoniae","Orientia tsutsugamushi (scrub typhus)","Leptospira","Mycobacterium tuberculosis",
+  "Candida albicans","Candida auris","Candida glabrata","Candida tropicalis","Candida parapsilosis","Candida krusei","Candida (non-albicans)","Aspergillus fumigatus","Aspergillus spp.","Mucorales","Cryptococcus neoformans","Pneumocystis jirovecii",
+  "Influenza A (H1N1)","Influenza A (H3N2)","Influenza A (unsubtyped)","Influenza B","SARS-CoV-2","RSV","Human metapneumovirus","Adenovirus","Rhinovirus / Enterovirus","Parainfluenza virus","Cytomegalovirus (CMV)","Herpes simplex virus (HSV)","Varicella-zoster virus (VZV)","Epstein-Barr virus (EBV)",
+  "Mixed growth"];
 const REASONS = {
   "Continue":["Clinically improving, course not complete","Cultures pending","Organism sensitive, drug appropriate","Source not yet controlled"],
   "De-escalate":["Culture: narrower drug covers organism","Cultures negative, clinically improving","MRSA ruled out","Source controlled"],
@@ -580,8 +623,8 @@ $("fMore").addEventListener("click", e=>{ if(e.target.closest(".mX")){ e.target.
 $("fMore").addEventListener("change", refreshFormSus);
 $("fDrug").addEventListener("change", refreshFormSus);
 $("fIsoAdd").onclick=()=>{ const dr=formDrugs(); isoRow($("fIsos"), null, dr.length?dr:["This antibiotic"]); };
-$("cxIsoAdd").onclick=()=>{ const c=courses.find(x=>x.id===current); isoRow($("cxIsos"), null, [c?c.drug:"Current antibiotic"]); };
-const cultureProven = () => $("fInd").value==="Targeted (culture-directed)" || /culture[- ]proven/i.test($("fRat").value);
+
+const cultureProven = () => $("fInd").value==="Targeted (culture-directed)" || /culture[- ]proven|PCR|FilmArray|NGS/i.test($("fRat").value);
 function syncCxSec(){ $("fCxSec").hidden = !cultureProven(); if(!$("fCxSec").hidden && !$("fIsos").children.length){ const dr=formDrugs(); isoRow($("fIsos"), null, dr.length?dr:["This antibiotic"]); } }
 const indLabel = c => c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : (c.indication || "–");
 const isTargetPlan = c => c.indication==="Targeted (culture-directed)" && +c.plannedDays>0;
@@ -651,11 +694,25 @@ function syncAlarms(){
 }
 
 /* ---------- culture isolates (one or more organisms) ---------- */
-const SPECIMENS = ["Blood","ETA / BAL","Urine","Pus / tissue","Drain fluid","CSF","Line tip","FLU NGS","NGS","Other"];
+const SPECIMENS = ["Blood", "BAL", "ETA", "Urine", "CSF", "Fluid", "Pus / tissue", "Line tip", "Other"];
+const TESTS = {fa:"FilmArray", ngs:"NGS"};
 const isolatesOf = cx => !cx ? [] : Array.isArray(cx.isolates) && cx.isolates.length ? cx.isolates : (cx.organism ? [{specimen:cx.specimen, organism:cx.organism, sus:cx.sus}] : []);
 function cultureFor(isos, drug){
   const isolates = isos.map(i=>({specimen:i.specimen, organism:i.organism, sus:(i.susBy||{})[drug]||""}));
   return {result:"Positive", isolates, specimen:isolates[0].specimen, organism:isolates[0].organism, sus:isolates[0].sus, susFor:drug};
+}
+const specOf = k => { const v=$(k+"Spec").value; return v==="Other" ? ($(k+"SpecO").value.trim()||"Other") : v; };
+function setSpec(k, v){ const sel=$(k+"Spec"), list=[...sel.options].map(o=>o.value); if(list.includes(v)) { sel.value=v; $(k+"SpecO").value=""; } else if (v) { sel.value="Other"; $(k+"SpecO").value=v; } $(k+"SpecOF").hidden = sel.value!=="Other"; }
+function readRapid(k){
+  const r=(document.querySelector(`input[name="${k}"]:checked`)||{}).value; if(!r) return null;
+  const t={result:r, specimen:specOf(k)};
+  if (r==="Detected"){ t.isolates = readIsos($(k+"Isos")).map(i=>({organism:i.organism})); t.genes=$(k+"Genes").value.trim(); }
+  return t;
+}
+function rapidTxt(tests){
+  if(!tests) return "";
+  return Object.keys(TESTS).filter(k=>tests[k]).map(k=>{ const t=tests[k];
+    return `${TESTS[k]} (${t.specimen}): ${t.result==="Detected" ? (t.isolates||[]).map(i=>i.organism).join(", ")+(t.genes?" · "+t.genes:"") : t.result}`; }).join("; ");
 }
 function cultureTxt(cx){
   if(!cx) return "";
@@ -670,14 +727,16 @@ function renderSus(row, drugs, prev){
     return `<div class="field"><span class="lab">${esc(dr)} is</span><div class="chips">${["Sensitive","Resistant","Not tested"].map(v=>
       `<label class="chip"><input type="radio" name="${nm}" data-drug="${esc(dr)}" value="${v}"${cur[dr]===v?" checked":""}><span>${v}</span></label>`).join("")}</div></div>`; }).join("");
 }
-function isoRow(box, iso, drugs){
-  const d=document.createElement("div"); d.className="iso";
+function isoRow(box, iso, drugs, rapid){
+  const d=document.createElement("div"); d.className="iso"+(rapid?" rapid":"");
   d.innerHTML = `<div class="isohead"><span class="lab isoN"></span><button type="button" class="btn quiet isoX">Remove</button></div>
     <div class="row2"><div class="field"><label>Specimen</label><select class="isoSpec">${SPECIMENS.map(o=>`<option>${o}</option>`).join("")}</select></div>
     <div class="field"><label>Organism</label><input type="text" class="isoOrg" list="orgList" maxlength="60" autocomplete="off" placeholder="Type or pick"></div></div>
     <div class="isoSus"></div>`;
-  if (iso){ d.querySelector(".isoSpec").value = SPECIMENS.includes(iso.specimen)?iso.specimen:"Other"; d.querySelector(".isoOrg").value = iso.organism||""; }
-  box.appendChild(d); renderSus(d, drugs, iso&&iso.susBy); numberIsos(box);
+  if (iso){ const sp=iso.specimen==="ETA / BAL"?"BAL":iso.specimen; d.querySelector(".isoSpec").value = SPECIMENS.includes(sp)?sp:"Other"; d.querySelector(".isoOrg").value = iso.organism||""; }
+  else if (box.id==="cxIsos"){ d.querySelector(".isoSpec").value = $("cxSpec").value; }
+  if (rapid){ d.querySelector(".isoSpec").closest(".field").hidden = true; }
+  box.appendChild(d); if(!rapid) renderSus(d, drugs, iso&&iso.susBy); numberIsos(box);
 }
 function numberIsos(box){ const rows=[...box.querySelectorAll(".iso")]; rows.forEach((r,i)=>{ r.querySelector(".isoN").textContent="Organism "+(i+1); r.querySelector(".isoX").hidden = rows.length<2; }); }
 const readIsos = box => [...box.querySelectorAll(".iso")].map(r=>({specimen:r.querySelector(".isoSpec").value, organism:r.querySelector(".isoOrg").value.trim(), susBy:readSus(r)})).filter(x=>x.organism);
@@ -713,7 +772,8 @@ function render(){
       else { label = kind+" overdue "+hrsTxt((now-st.due)/H); detail = st.first ? (isProph(c)?"Prophylaxis past 24 h":"No time-out by 72 h") : "Planned review missed"; }
       const revs = c.reviews||[], lr = revs[revs.length-1];
       const last = lr ? `Last: ${esc(lr.decision)} · ${fmt(lr.at)}` : (c.cultureSent ? "Cultures sent before first dose" : "No cultures before first dose");
-      const cx = (lr && lr.culture) || c.culture;
+      const cx = [...revs].reverse().map(r=>r.culture).find(Boolean) || c.culture;
+      const tx = [...revs].reverse().map(r=>r.tests).find(Boolean) || c.tests;
       const tag = isProph(c) ? "Prophylaxis past 24 h — stop or justify" : "Empirical at 72 h with no time-out";
       const ackTxt = c.ack ? `<div class="meta ackline">${isProph(c)?"24":"72"} h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
       return `<article class="course ${st.s==="overdue"?"overdue":"pending"}${st.pastStop?" paststop":""}${al?" alert":""}">
@@ -729,7 +789,7 @@ function render(){
             <span class="tick" style="left:${pct((st.due-start)/H)}"></span>
             ${st.ps?`<span class="tick" style="left:${pct((st.ps-start)/H)};background:var(--over);opacity:.9"></span>`:""}
           </div>
-          <div class="meta">${last}${cx?" · "+esc(cultureTxt(cx)):""}${c.demo?' · <i>example</i>':''}</div>
+          <div class="meta">${last}${cx?" · "+esc(cultureTxt(cx)):""}${tx?" · "+esc(rapidTxt(tx)):""}${c.demo?' · <i>example</i>':''}</div>
           ${st.ps?(st.pastStop?`<div><span class="stoptag">Past planned stop (${+c.plannedDays||0} d, ${fdate(st.ps)}) — stop or extend</span></div>`:`<div class="meta">Planned stop ${fdate(st.ps)} (${+c.plannedDays||0} d)</div>`):""}
           ${ackTxt}
         </div>
@@ -916,9 +976,15 @@ function syncToForm(){
   const mode = swModeVal();
   $("toDaysLab").textContent = sw && mode==="replace" ? "Review new antibiotic in (days)" : sw && mode==="add" ? "Review both in (days)" : "Review again in (days)";
   $("toSave").textContent = dec==="Stop" ? "Record and stop" : sw ? (mode==="replace" ? "Record and replace" : mode==="add" ? "Record and add" : "Record time-out") : "Record time-out";
-  const cx = (document.querySelector('input[name="cx"]:checked')||{}).value;
-  $("cxPos").hidden = cx!=="Positive";
-  if (cx==="Positive" && !$("cxIsos").children.length){ const c=courses.find(x=>x.id===current); isoRow($("cxIsos"), null, [c?c.drug:"Current antibiotic"]); }
+  const c0=courses.find(x=>x.id===current);
+  ["cx","fa","ngs"].forEach(k=>{
+    const v=(document.querySelector(`input[name="${k}"]:checked`)||{}).value;
+    $(k+"More").hidden = !v; document.querySelector(`.tclear[data-t="${k}"]`).hidden = !v;
+    $(k+"SpecOF").hidden = $(k+"Spec").value!=="Other";
+    const pos = v==="Positive" || v==="Detected";
+    $(k+"Pos").hidden = !pos;
+    if (pos && !$(k+"Isos").children.length) isoRow($(k+"Isos"), null, [c0?c0.drug:"Current antibiotic"], k!=="cx");
+  });
   $("swEmp").hidden = !(sw && $("swInd").value==="Empirical");
 }
 function fillReasons(dec){
@@ -931,11 +997,18 @@ $("toDec").addEventListener("change", e=>{ if(e.target.name==="dec"){
   // Escalate: no default (add-on or replace are both common). De-escalate / IV to oral: default replace.
   // Escalate / New infection: no default (add-on or replace are both common). De-escalate / IV to oral: default replace.
   document.querySelectorAll('input[name="swMode"]').forEach(r=>r.checked = !["Escalate","New infection"].includes(d) && r.value==="replace");
-  const cxNow=(document.querySelector('input[name="cx"]:checked')||{}).value;
+  const cxNow = ["cx","fa","ngs"].some(k=>["Positive","Detected"].includes((document.querySelector(`input[name="${k}"]:checked`)||{}).value)) ? "Positive" : "";
   $("swInd").value = d==="New infection" ? "Empirical" : (cxNow==="Positive" ? "Targeted (culture-directed)" : "Empirical");
   if (d==="New infection"){ const c=courses.find(x=>x.id===current); $("swSite").value = c&&c.site || "Pneumonia"; $("swCult").checked=true; }
   syncToForm(); } });
-$("cxRes").addEventListener("change", syncToForm);
+["cx","fa","ngs"].forEach(k=>{
+  $(k+"Res").addEventListener("change", syncToForm);
+  $(k+"Spec").addEventListener("change", ()=>{ $(k+"SpecOF").hidden = $(k+"Spec").value!=="Other"; if($(k+"Spec").value==="Other") $(k+"SpecO").focus();
+    if (k==="cx") $("cxIsos").querySelectorAll(".isoSpec").forEach(sel=>{ sel.value=$("cxSpec").value; }); });
+  $(k+"IsoAdd").onclick=()=>{ const c=courses.find(x=>x.id===current); isoRow($(k+"Isos"), null, [c?c.drug:"Current antibiotic"], k!=="cx"); };
+});
+document.addEventListener("click", e=>{ const b=e.target.closest(".tclear"); if(!b) return; const k=b.dataset.t;
+  document.querySelectorAll(`input[name="${k}"]`).forEach(r=>r.checked=false); $(k+"Isos").innerHTML=""; if($(k+"Genes")) $(k+"Genes").value=""; syncToForm(); });
 $("swMode").addEventListener("change", syncToForm);
 $("swInd").addEventListener("change", syncToForm);
 
@@ -948,22 +1021,27 @@ function openTimeout(c){
   $("toSub").textContent = `${stopped?"Stopped · ":""}Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${indLabel(c)} · ${c.site}${c.rationale?" · "+c.rationale:""}`;
   $("swAddTxt").textContent = `Keep ${c.drug}, add new`;
   $("swRepTxt").textContent = `Stop ${c.drug}, replace`;
-  $("cxIsos").innerHTML="";
+  ["cx","fa","ngs"].forEach(k=>{ $(k+"Isos").innerHTML=""; $(k+"Spec").selectedIndex=0; $(k+"SpecO").value=""; if($(k+"Genes")) $(k+"Genes").value=""; });
   $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3;
   if (isTargetPlan(c)){ const left=Math.ceil((plannedStop(c)-Date.now())/D); if(left>=1) $("toDays").value=Math.min(14,left); } $("toPlan").value = c.plannedDays||"";
   $("toBy").value = lastBy();
   const prevCx = [...(c.reviews||[])].reverse().map(r=>r.culture).find(Boolean) || c.culture;
   if (prevCx){ const r=document.querySelector(`input[name="cx"][value="${prevCx.result}"]`); if(r) r.checked=true;
+    if (prevCx.siteSpec || prevCx.specimen) setSpec("cx", prevCx.siteSpec || (prevCx.specimen==="ETA / BAL"?"BAL":prevCx.specimen));
     if(prevCx.result==="Positive"){ const own=!prevCx.susFor||prevCx.susFor===c.drug;
       isolatesOf(prevCx).forEach(i=>isoRow($("cxIsos"), {specimen:i.specimen, organism:i.organism, susBy: own&&i.sus?{[c.drug]:i.sus}:{}}, [c.drug])); } }
+  const prevT = [...(c.reviews||[])].reverse().map(r=>r.tests).find(Boolean) || c.tests;
+  if (prevT) Object.keys(TESTS).forEach(k=>{ const t=prevT[k]; if(!t) return;
+    const r=document.querySelector(`input[name="${k}"][value="${t.result}"]`); if(r) r.checked=true; setSpec(k, t.specimen);
+    if (t.result==="Detected"){ (t.isolates||[]).forEach(i=>isoRow($(k+"Isos"), {organism:i.organism}, [c.drug], true)); if($(k+"Genes")) $(k+"Genes").value=t.genes||""; } });
   // decisions are for active courses only
-  [$("toDec").closest(".field"), $("toReasons").closest(".field"), $("cxRes").closest(".sec"), $("toAt").closest(".row2"), $("toNote").closest(".field"), $("daysField").closest(".row2")]
+  [$("toDec").closest(".field"), $("toReasons").closest(".field"), ...document.querySelectorAll("#toForm .tblock"), document.querySelector("#toForm .tests-hint"), $("toAt").closest(".row2"), $("toNote").closest(".field"), $("daysField").closest(".row2")]
     .forEach(x=>x.hidden=stopped);
   $("toSave").hidden = stopped;
   syncToForm();
   const revs=c.reviews||[];
   $("toHistory").hidden = !revs.length && !c.ack;
-  $("toHistory").innerHTML = (c.ack?`<div><b>Alert acknowledged</b> · ${fmt(c.ack.at)} · ${esc(c.ack.by)}</div>`:"") + revs.map(r=>`<div><b>${esc(r.decision)}</b> · ${fmt(r.at)} (${Math.round(r.hoursFromStart)} h)${r.fromDrug?` · ${esc(r.fromDrug)} → ${esc(r.toDrug)}`:""}${r.switchedTo?` → ${esc(r.switchedTo.join(", "))}${r.stoppedCurrent?"":" (added)"}`:""}${r.by?` · ${esc(r.by)}`:""}<br>${esc((r.reasons||[]).join("; "))}${r.culture?" · "+esc(cultureTxt(r.culture)):""}${r.note?` — ${esc(r.note)}`:""}</div>`).join("");
+  $("toHistory").innerHTML = (c.ack?`<div><b>Alert acknowledged</b> · ${fmt(c.ack.at)} · ${esc(c.ack.by)}</div>`:"") + revs.map(r=>`<div><b>${esc(r.decision)}</b> · ${fmt(r.at)} (${Math.round(r.hoursFromStart)} h)${r.fromDrug?` · ${esc(r.fromDrug)} → ${esc(r.toDrug)}`:""}${r.switchedTo?` → ${esc(r.switchedTo.join(", "))}${r.stoppedCurrent?"":" (added)"}`:""}${r.by?` · ${esc(r.by)}`:""}<br>${esc((r.reasons||[]).join("; "))}${r.culture?" · "+esc(cultureTxt(r.culture)):""}${r.tests?" · "+esc(rapidTxt(r.tests)):""}${r.note?` — ${esc(r.note)}`:""}</div>`).join("");
   $("toScrim").hidden=false;
 }
 document.addEventListener("click", e=>{
@@ -992,13 +1070,15 @@ $("toForm").addEventListener("submit", async e=>{
   const reasons = [...document.querySelectorAll('input[name="rsn"]:checked')].map(x=>x.value);
   if(!reasons.length) return err("Pick at least one reason.");
   const cxEl = document.querySelector('input[name="cx"]:checked');
-  if(!cxEl) return err("Choose the culture result.");
-  const culture = {result:cxEl.value};
-  if (cxEl.value==="Positive"){
+  const tests = {}; Object.keys(TESTS).forEach(k=>{ const t=readRapid(k); if(t) tests[k]=t; });
+  if(!cxEl && !Object.keys(tests).length) return err("Mark at least one result: culture, FilmArray or NGS.");
+  for (const k of Object.keys(tests)) if (tests[k].result==="Detected" && !(tests[k].isolates||[]).length) return err(`Enter the organism detected by ${TESTS[k]}.`);
+  const culture = cxEl ? {result:cxEl.value, siteSpec:specOf("cx"), specimen:specOf("cx")} : null;
+  if (cxEl && cxEl.value==="Positive"){
     const isos = readIsos($("cxIsos"));
     if(!isos.length) return err("Enter the organism.");
     if(isos.some(i=>!(i.susBy||{})[c.drug])) return err(`Mark whether ${c.drug} is sensitive or resistant for each organism.`);
-    Object.assign(culture, cultureFor(isos, c.drug));
+    Object.assign(culture, cultureFor(isos.map(i=>Object.assign({}, i, {specimen: i.specimen==="Other" ? specOf("cx") : i.specimen})), c.drug));
   }
   const at = new Date($("toAt").value);
   if(isNaN(at)) return err("Enter the time-out time.");
@@ -1024,9 +1104,11 @@ $("toForm").addEventListener("submit", async e=>{
   const toPlanV=$("toPlan").value.trim(), toPlan = toPlanV?parseInt(toPlanV,10):null;
   if(dec==="Continue" && toPlanV && !(toPlan>=1&&toPlan<=42)) return err("Planned duration must be 1–42 days.");
   const by=$("toBy").value.trim(); setLastBy(by);
-  const rev = { at:at.toISOString(), decision:dec, reasons, note:$("toNote").value.trim(), by, culture,
+  const rev = { at:at.toISOString(), decision:dec, reasons, note:$("toNote").value.trim(), by, culture: culture||undefined, tests: Object.keys(tests).length?tests:undefined,
     hoursFromStart:(at-Date.parse(c.startedAt))/H };
-  const patch = { culture };
+  const patch = {};
+  if (culture) patch.culture = culture;
+  if (Object.keys(tests).length) patch.tests = Object.assign({}, c.tests||{}, tests);
   if (sw){ rev.switchedTo = newOnes.map(r=>r.drug); rev.stoppedCurrent = stopCur; }
   if (dec==="Stop" || stopCur){ patch.status="stopped"; patch.stoppedAt=at.toISOString(); }
   else rev.nextDue = new Date(at.getTime()+days*D).toISOString();
@@ -1041,8 +1123,8 @@ $("toForm").addEventListener("submit", async e=>{
         site: emp ? $("swSite").value : c.site, rationale:r.rationale, plannedDays:swPlan, cultureSent: emp ? $("swCult").checked : c.cultureSent,
         startedAt:at.toISOString(), by, status:"active", reviews:[], createdAt:new Date().toISOString(),
         linkedFrom:c.id, linkedFromDrug:c.drug, linkDecision:dec, linkMode:stopCur?"replace":"add" };
-      if (emp){ if (dec!=="New infection") nc.culture = culture; }   // empirical: own 72 h clock and alert
-      else { nc.culture = culture; nc.reviewDueAt = new Date(at.getTime()+(swPlan || days)*D).toISOString(); }
+      if (emp){ if (dec!=="New infection"){ if(culture) nc.culture = culture; if(patch.tests) nc.tests = patch.tests; } }   // empirical: own 72 h clock and alert
+      else { if(culture) nc.culture = culture; if(patch.tests) nc.tests = patch.tests; nc.reviewDueAt = new Date(at.getTime()+(swPlan || days)*D).toISOString(); }
       await db.collection("courses").add(nc);
     }
     $("toScrim").hidden=true; current=null;
@@ -1222,6 +1304,9 @@ function buildReport(list, from, to, icuTitle){
   const proph=list.filter(isProph);
   const prophLong=proph.filter(c=>((c.status==="stopped"?Date.parse(c.stoppedAt):now)-Date.parse(c.startedAt))>24*H);
   const firsts=orig.map(c=>(c.reviews||[])[0]).filter(Boolean);
+  const anyT=(c,k,pos)=>[...(c.reviews||[]).map(r=>r.tests),c.tests].some(t=>t&&t[k]&&(!pos||t[k].result==="Detected"));
+  const rapidDe=list.filter(c=>(c.reviews||[]).some(r=>r.decision==="De-escalate" && r.tests && Object.values(r.tests).some(t=>t.result==="Detected") && !(r.culture && r.culture.result==="Positive"))).length;
+  const rapidRows=[["FilmArray sent",list.filter(c=>anyT(c,"fa")).length],["FilmArray detected",list.filter(c=>anyT(c,"fa",1)).length],["NGS sent",list.filter(c=>anyT(c,"ngs")).length],["NGS detected",list.filter(c=>anyT(c,"ngs",1)).length],["De-escalated on rapid test, before culture",rapidDe]];
   const withCx=firsts.filter(r=>r.culture && r.culture.result!=="Pending" && r.culture.result!=="Not sent");
   const pos=firsts.filter(r=>r.culture&&r.culture.result==="Positive");
   const neg=firsts.filter(r=>r.culture&&r.culture.result==="No growth");
@@ -1263,13 +1348,15 @@ function buildReport(list, from, to, icuTitle){
     const fH=firstH(c), lim=deadlineH(c);
     const dur=((c.status==="stopped"?Date.parse(c.stoppedAt):now)-Date.parse(c.startedAt))/D;
     const cx=[...revs].reverse().map(r=>r.culture).find(Boolean) || c.culture;
+    const tx=[...revs].reverse().map(r=>r.tests).find(Boolean) || c.tests || {};
+    const rt=k=>{ const t=tx[k]; if(!t) return "–"; return `${esc(t.specimen)}: ${t.result==="Detected" ? esc((t.isolates||[]).map(i=>i.organism).join(", "))+(t.genes?" · "+esc(t.genes):"") : esc(t.result)}`; };
     const cxT = !cx ? "–" : cx.result==="Positive" ? isolatesOf(cx).map(i=>`${esc(i.organism)} (${esc(i.specimen)})${i.sus&&(!cx.susFor||cx.susFor===c.drug)?" · "+esc(String(i.sus)[0]):""}`).join("; ") : esc(cx.result);
     const ps=plannedStop(c), over = ps && (c.status==="stopped"?Date.parse(c.stoppedAt):now) > ps+12*H;
     const dec = revs.map(r=>esc(r.decision)+(r.switchedTo?" → "+esc(r.switchedTo.join(", ")):"")).join("; ")||"–";
     return `<tr${lead?' class="pfirst"':''}>${lead||""}<td class="n">${dd(c.startedAt)}</td>
       <td>${esc(drugs)}${isLinked(c)?`<div class="sm">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
       <td>${esc(indLabel(c).replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
-      <td>${cxT}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
+      <td>${cxT}</td><td>${rt("fa")}</td><td>${rt("ngs")}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
       <td>${c.ack?esc(c.ack.by)+" "+dd(c.ack.at):"–"}</td><td class="n${over?" late":""}">${c.plannedDays?(+c.plannedDays||0)+" d":"–"}</td>
       <td>${c.status==="stopped"?"Stopped "+dd(c.stoppedAt):"Active"}</td><td class="n">${dur.toFixed(1)}</td></tr>`;
   };
@@ -1304,9 +1391,9 @@ function buildReport(list, from, to, icuTitle){
   <div class="meta"><b>ICU:</b> ${esc(icuTitle||"All ICUs")}<br><b>Period:</b> ${from.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} – ${to.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}<br><b>Generated:</b> ${dd(new Date().toISOString())}</div></header>
   <div class="kpis">${kpis.map(([l,v,s2])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${esc(l)}</div><div class="s">${esc(s2)}</div></div>`).join("")}</div>
   <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n)}${tbl("ICU",count(list,c=>icuName(c)||"Not recorded"),n)}${tbl("Indication",count(list,indLabel),n)}${tbl("Suspected source",count(list,c=>c.site),n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
-  <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Organisms isolated",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
+  <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Rapid diagnostics",rapidRows,list.length)}${tbl("Organisms isolated (culture)",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${pts.length} patient${pts.length===1?"":"s"}, ${n} antibiotic course${n===1?"":"s"})</h2>
-  <table class="list"><thead><tr><th>S.No</th><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="list"><thead><tr><th>S.No</th><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>FilmArray</th><th>NGS</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
   <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h for empirical, 24 h for prophylaxis, or by the end of the planned course for targeted, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
   </body></html>`;
 }
