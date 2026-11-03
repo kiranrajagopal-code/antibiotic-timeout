@@ -258,6 +258,10 @@ textarea{resize:vertical;min-height:60px}
 .thead .btn{padding:4px 6px;font-size:13px}
 .tests-hint{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-bottom:-6px}
 .tblock{border-top:0;padding-top:4px}
+.tgtswitch{align-items:flex-start;background:var(--accent-soft);border-radius:12px;padding:12px;font-size:14px;line-height:1.4}
+.tgtswitch input{margin-top:2px}
+.dx{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px;color:var(--muted);margin-top:2px}
+.dx b{color:var(--ink);font-weight:700;white-space:nowrap}
 .isohead .btn{padding:4px 6px;font-size:13px}
 .swrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
 @media (max-width:480px){.swrow{grid-template-columns:1fr auto}.swrow .rf{grid-column:1 / -1;grid-row:2}}
@@ -349,7 +353,18 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     <div id="fMore" class="swrows"></div>
     <button class="btn quiet" type="button" id="fMoreAdd" style="align-self:flex-start;padding-left:0">+ Add another antibiotic</button>
     <div class="sec" id="fCxSec" hidden>
-      <span class="lab">Culture</span>
+      <div class="field"><span class="lab">Positive result from</span>
+        <div class="chips" id="fSrc">
+          <label class="chip"><input type="radio" name="fsrc" value="cx" checked><span>Culture</span></label>
+          <label class="chip"><input type="radio" name="fsrc" value="fa"><span>FilmArray</span></label>
+          <label class="chip"><input type="radio" name="fsrc" value="ngs"><span>NGS</span></label>
+          <label class="chip"><input type="radio" name="fsrc" value="flu"><span>FLU NGS</span></label>
+        </div>
+      </div>
+      <div class="row2" id="fSrcSiteF" hidden>
+        <div class="field"><label for="fSrcSpec">Site</label><select id="fSrcSpec"></select></div>
+        <div class="field" id="fSrcSpecOF" hidden><label for="fSrcSpecO">Other specimen</label><input type="text" id="fSrcSpecO" maxlength="40" autocomplete="off"></div>
+      </div>
       <div class="isos" id="fIsos"></div>
       <button class="btn quiet" type="button" id="fIsoAdd" style="align-self:flex-start;padding-left:0">+ Add another organism</button>
     </div>
@@ -529,9 +544,10 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       </div>
     </div>
 
+    <label class="check tgtswitch" id="toTgtF" hidden><input type="checkbox" id="toTgt"> <span><b>Now targeted</b> — organism identified, continue as targeted therapy. The next alert comes at the end of the planned days.</span></label>
     <div class="row2">
       <div class="field" id="daysField"><label for="toDays" id="toDaysLab">Review again in (days)</label><input type="number" id="toDays" min="1" max="14" step="1" value="3"></div>
-      <div class="field" id="planField" hidden><label for="toPlan">Planned total duration (days)</label><input type="number" id="toPlan" min="1" max="42" step="1"></div>
+      <div class="field" id="planField" hidden><label for="toPlan" id="toPlanLab">Planned total duration (days)</label><input type="number" id="toPlan" min="1" max="42" step="1"></div>
     </div>
     <div class="row2">
       <div class="field"><label for="toAt">Time-out done at</label><input type="datetime-local" id="toAt"></div>
@@ -623,7 +639,7 @@ const LEFT = "Left ICU";
 /* ---------- rules ---------- */
 const isProph = c => c.indication==="Prophylaxis";
 const formDrugs = () => [$("fDrug").value.trim(), ...[...$("fMore").querySelectorAll(".mDrug")].map(i=>i.value.trim())].filter(Boolean);
-function refreshFormSus(){ const dr=formDrugs(); const list=dr.length?dr:["This antibiotic"]; $("fIsos").querySelectorAll(".iso").forEach(r=>renderSus(r, list)); }
+function refreshFormSus(){ const dr=formDrugs(); const list=dr.length?dr:["This antibiotic"]; $("fIsos").querySelectorAll(".iso:not(.rapid)").forEach(r=>renderSus(r, list)); }
 function moreRow(){
   const n=$("fMore").children.length;
   const d=document.createElement("div"); d.className="swrow";
@@ -636,13 +652,27 @@ $("fMoreAdd").onclick=()=>moreRow();
 $("fMore").addEventListener("click", e=>{ if(e.target.closest(".mX")){ e.target.closest(".swrow").remove(); $("fMoreAdd").hidden=false; refreshFormSus(); } });
 $("fMore").addEventListener("change", refreshFormSus);
 $("fDrug").addEventListener("change", refreshFormSus);
-$("fIsoAdd").onclick=()=>{ const dr=formDrugs(); isoRow($("fIsos"), null, dr.length?dr:["This antibiotic"]); };
+const fSrc = () => (document.querySelector('input[name="fsrc"]:checked')||{}).value || "cx";
+function rebuildSrc(keepOrgs){
+  const src=fSrc(), rapid=src!=="cx", dr=formDrugs(), list=dr.length?dr:["This antibiotic"];
+  const orgs = keepOrgs || readIsos($("fIsos")).map(i=>({organism:i.organism, specimen:i.specimen, susBy:i.susBy}));
+  $("fIsos").innerHTML="";
+  (orgs.length?orgs:[null]).forEach(o=>isoRow($("fIsos"), o, list, rapid));
+  $("fSrcSiteF").hidden = !rapid;
+  if (rapid){ const cur=$("fSrcSpec").value; $("fSrcSpec").innerHTML = $(src+"Spec").innerHTML; if([...$("fSrcSpec").options].some(o=>o.value===cur)) $("fSrcSpec").value=cur; }
+  $("fSrcSpecOF").hidden = !rapid || $("fSrcSpec").value!=="Other";
+}
+$("fSrc").addEventListener("change", ()=>rebuildSrc());
+$("fSrcSpec").addEventListener("change", ()=>{ $("fSrcSpecOF").hidden = $("fSrcSpec").value!=="Other"; });
+$("fIsoAdd").onclick=()=>{ const dr=formDrugs(); isoRow($("fIsos"), null, dr.length?dr:["This antibiotic"], fSrc()!=="cx"); };
 
 const cultureProven = () => $("fInd").value==="Targeted (culture-directed)" || /culture[- ]proven|PCR|FilmArray|NGS/i.test($("fRat").value);
-function syncCxSec(){ $("fCxSec").hidden = !cultureProven(); if(!$("fCxSec").hidden && !$("fIsos").children.length){ const dr=formDrugs(); isoRow($("fIsos"), null, dr.length?dr:["This antibiotic"]); } }
-const indLabel = c => c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : (c.indication || "–");
+function syncCxSec(){ $("fCxSec").hidden = !cultureProven(); if(!$("fCxSec").hidden && !$("fIsos").children.length) rebuildSrc([]); }
+const indLabel = c => { const base = c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : (c.indication || "–");
+  return c.origIndication && c.origIndication!==c.indication ? base+" (started "+String(c.origIndication).toLowerCase()+")" : base; };
 const isTargetPlan = c => c.indication==="Targeted (culture-directed)" && +c.plannedDays>0;
-const deadlineH = c => isProph(c) ? 24 : isTargetPlan(c) ? +c.plannedDays*24 : 72;
+const startInd = c => c.origIndication || c.indication;   // what the course started as (for time-out compliance)
+const deadlineH = c => { const si=startInd(c); return si==="Prophylaxis" ? 24 : (si==="Targeted (culture-directed)" && +c.plannedDays>0) ? +c.plannedDays*24 : 72; };
 const plannedStop = c => c.plannedDays ? Date.parse(c.startedAt) + c.plannedDays*D : null;
 const isLinked = c => !!c.linkedFrom;
 
@@ -659,8 +689,8 @@ function status(c, now){
   else if (c.reviewDueAt) due = Date.parse(c.reviewDueAt);
   else { due = start + deadlineH(c)*H; first=true; }
   const ps = plannedStop(c);
-  const tgtFirst = first && isTargetPlan(c);
-  return {s: now < due ? "pending" : "overdue", due, first, pastStop: !tgtFirst && !!ps && now > ps, ps: tgtFirst ? null : ps};
+  const endDue = isTargetPlan(c) && !!ps && Math.abs(due-ps) < 60000;   // next alert is the end of a targeted course
+  return {s: now < due ? "pending" : "overdue", due, first, endDue, pastStop: !endDue && !!ps && now > ps, ps: endDue ? null : ps};
 }
 
 /* ---------- dashboard ---------- */
@@ -698,10 +728,12 @@ function syncAlarms(){
       else if (isProph(c)){ if(!c.ack) list.push({id:"pro-"+c.id, at:st.due, title:"Prophylaxis past 24 h — "+w, text:`${c.drug} prophylaxis has run 24 h. Stop, or record why it continues.`}); }
       else if (isTargetPlan(c)) list.push({id:"tgt-"+c.id, at:st.due, title:"Targeted course complete — "+w, text:`${c.drug}: planned ${+c.plannedDays}-day targeted course ends now. Stop, or extend with a reason.`});
       else list.push({id:"due-"+c.id, at:st.due, title:"Antibiotic time-out due — "+w, text:`${c.drug}: 72 h reached with no time-out recorded.`});
+    } else if (st.endDue) {
+      list.push({id:"tgt-"+c.id+"-"+st.due, at:st.due, title:"Targeted course complete — "+w, text:`${c.drug}: planned ${+c.plannedDays}-day targeted course ends now. Stop, or extend with a reason.`});
     } else {
       list.push({id:"rev-"+c.id+"-"+st.due, at:st.due, title:"Antibiotic review due — "+w, text:`${c.drug}: planned review is due now.`});
     }
-    if (st.ps && !(st.first && isTargetPlan(c))) list.push({id:"stp-"+c.id+"-"+st.ps, at:st.ps, title:"Planned stop date reached — "+w, text:`${c.drug}: planned ${c.plannedDays}-day course ends now. Stop, or extend with a reason.`});
+    if (st.ps) list.push({id:"stp-"+c.id+"-"+st.ps, at:st.ps, title:"Planned stop date reached — "+w, text:`${c.drug}: planned ${c.plannedDays}-day course ends now. Stop, or extend with a reason.`});
   });
   const json=JSON.stringify(list);
   if(json!==lastAlarmJson){ lastAlarmJson=json; try{ AndroidApp.setAlarms(json); }catch(_){} }
@@ -727,6 +759,19 @@ function rapidTxt(tests){
   if(!tests) return "";
   return Object.keys(TESTS).filter(k=>tests[k]).map(k=>{ const t=tests[k];
     return `${TESTS[k]} (${t.specimen}): ${t.result==="Detected" ? (t.isolates||[]).map(i=>i.organism).join(", ")+(t.genes?" · "+t.genes:"") : t.result}`; }).join("; ");
+}
+function lastCulture(c){
+  for (const r of [...(c.reviews||[])].reverse()){ if (r.cultureCleared) return null; if (r.culture) return r.culture; }
+  return c.culture || null;
+}
+function dxHtml(cx, tx){
+  const rows=[]; const t=tx||{};
+  const anyRapid = Object.keys(TESTS).some(k=>t[k]);
+  if (cx) rows.push(["Culture", cultureTxt(cx).replace(/^Culture: /,"")]);
+  else if (anyRapid) rows.push(["Culture","awaited"]);
+  Object.keys(TESTS).forEach(k=>{ const r=t[k]; if(!r) return;
+    rows.push([TESTS[k], `${r.result==="Detected" ? (r.isolates||[]).map(i=>i.organism).join(", ")+(r.genes?" · "+r.genes:"") : r.result} (${r.specimen})`]); });
+  return rows.length ? `<div class="dx">${rows.map(([a,b])=>`<b>${esc(a)}</b><span>${esc(b)}</span>`).join("")}</div>` : "";
 }
 function cultureTxt(cx){
   if(!cx) return "";
@@ -776,7 +821,7 @@ function render(){
       const span = Math.max(168, Math.ceil((endH+24)/24)*24);
       const pct = x => Math.min(100, Math.max(0,x)/span*100).toFixed(2)+"%";
       let label, detail;
-      const tgt = st.first && isTargetPlan(c);
+      const tgt = st.endDue;
       const kind = st.first ? "Time-out" : "Review";
       if (tgt){
         if (st.s==="pending"){ label = "Course ends in "+hrsTxt((st.due-now)/H); detail = `Day ${+c.plannedDays} on ${fmt(new Date(st.due).toISOString())}`; }
@@ -786,7 +831,7 @@ function render(){
       else { label = kind+" overdue "+hrsTxt((now-st.due)/H); detail = st.first ? (isProph(c)?"Prophylaxis past 24 h":"No time-out by 72 h") : "Planned review missed"; }
       const revs = c.reviews||[], lr = revs[revs.length-1];
       const last = lr ? `Last: ${esc(lr.decision)} · ${fmt(lr.at)}` : (c.cultureSent ? "Cultures sent before first dose" : "No cultures before first dose");
-      const cx = [...revs].reverse().map(r=>r.culture).find(Boolean) || c.culture;
+      const cx = lastCulture(c);
       const tx = [...revs].reverse().map(r=>r.tests).find(Boolean) || c.tests;
       const tag = isProph(c) ? "Prophylaxis past 24 h — stop or justify" : "Empirical at 72 h with no time-out";
       const ackTxt = c.ack ? `<div class="meta ackline">${isProph(c)?"24":"72"} h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
@@ -803,7 +848,8 @@ function render(){
             <span class="tick" style="left:${pct((st.due-start)/H)}"></span>
             ${st.ps?`<span class="tick" style="left:${pct((st.ps-start)/H)};background:var(--over);opacity:.9"></span>`:""}
           </div>
-          <div class="meta">${last}${cx?" · "+esc(cultureTxt(cx)):""}${tx?" · "+esc(rapidTxt(tx)):""}${c.demo?' · <i>example</i>':''}</div>
+          <div class="meta">${last}${c.demo?' · <i>example</i>':''}</div>
+          ${dxHtml(cx, tx)}
           ${st.ps?(st.pastStop?`<div><span class="stoptag">Past planned stop (${+c.plannedDays||0} d, ${fdate(st.ps)}) — stop or extend</span></div>`:`<div class="meta">Planned stop ${fdate(st.ps)} (${+c.plannedDays||0} d)</div>`):""}
           ${ackTxt}
         </div>
@@ -821,9 +867,9 @@ function render(){
       const al=g.items.some(x=>x.al), over=g.items.some(x=>x.st.s==="overdue"), ps=g.items.some(x=>x.st.pastStop);
       const nextDue=Math.min(...g.items.map(x=>x.st.due));
       const nx = g.items.reduce((a,x)=>x.st.due<a.st.due?x:a);
-      const overTgt = g.items.some(x=>x.st.s==="overdue" && x.st.first && isTargetPlan(x.c));
-      const label = al ? "Acknowledge" : over ? (overTgt && !g.items.some(x=>x.st.s==="overdue" && !(x.st.first && isTargetPlan(x.c))) ? "Course ended" : "Overdue") : ps ? "Past stop"
-        : (nx.st.first && isTargetPlan(nx.c) ? "Ends " : "Due ")+hrsTxt((nextDue-now)/H);
+      const overTgt = g.items.some(x=>x.st.s==="overdue" && x.st.endDue);
+      const label = al ? "Acknowledge" : over ? (overTgt && !g.items.some(x=>x.st.s==="overdue" && !x.st.endDue) ? "Course ended" : "Overdue") : ps ? "Past stop"
+        : (nx.st.endDue ? "Ends " : "Due ")+hrsTxt((nextDue-now)/H);
       const cls = al ? "alert" : (over||ps) ? "overdue" : "pending";
       const open = openRows.has(g.k);
       const drugs = g.items.map(x=>esc(x.c.drug)).join(" · ");
@@ -883,9 +929,15 @@ function openAdd(c, preset){
   $("fIndOtherF").hidden = $("fInd").value!=="Other";
   // culture fields (prefill on edit)
   $("fMore").innerHTML=""; $("fMoreAdd").hidden = !!c; $("fIsos").innerHTML="";
+  document.querySelector('input[name="fsrc"][value="cx"]').checked = true; $("fSrcSiteF").hidden = true; $("fSrcSpecO").value="";
   if (c && c.culture && c.culture.result==="Positive"){
     const own = !c.culture.susFor || c.culture.susFor===c.drug;
     isolatesOf(c.culture).forEach(i=>isoRow($("fIsos"), {specimen:i.specimen, organism:i.organism, susBy: own&&i.sus?{[c.drug]:i.sus}:{}}, [c.drug]));
+  } else if (c && c.tests){
+    const k = Object.keys(TESTS).find(k=>c.tests[k] && c.tests[k].result==="Detected");
+    if (k){ document.querySelector(`input[name="fsrc"][value="${k}"]`).checked = true;
+      rebuildSrc((c.tests[k].isolates||[]).map(i=>({organism:i.organism})));
+      const sp=c.tests[k].specimen; if([...$("fSrcSpec").options].some(o=>o.value===sp)) $("fSrcSpec").value=sp; else { $("fSrcSpec").value="Other"; $("fSrcSpecO").value=sp||""; $("fSrcSpecOF").hidden=false; } }
   }
   syncCxSec(); $("fPlanReq").hidden = $("fInd").value!=="Targeted (culture-directed)";
   $("addScrim").hidden=false; if(!c) (preset ? $("fDrug") : $("fBed")).focus();
@@ -916,7 +968,8 @@ $("addForm").addEventListener("submit", async e=>{
   if(!rationale) return err("Enter the rationale.");
   const indOther = $("fIndOther").value.trim();
   const isos = readIsos($("fIsos"));
-  if (cultureProven() && !isos.length) return err("Enter the organism grown in culture.");
+  const c0x = editId ? courses.find(x=>x.id===editId) : null;
+  if (cultureProven() && !isos.length) return err("Enter the organism identified.");
   const extra = editId ? [] : [...$("fMore").querySelectorAll(".swrow")].map(r=>({drug:r.querySelector(".mDrug").value.trim(), rationale:r.querySelector(".mRat").value.trim()})).filter(r=>r.drug||r.rationale);
   if (extra.some(r=>!r.drug)) return err("Enter the name of each extra antibiotic.");
   if (extra.some(r=>!r.rationale)) return err("Enter the rationale for each extra antibiotic.");
@@ -942,11 +995,20 @@ $("addForm").addEventListener("submit", async e=>{
   setLastIcu({icu, icuOther: icu==="Other"?icuOther:""});
   const data = { icu, icuOther: icu==="Other"?icuOther:"", bed, codeName, drug, aware: aware(drug), indication:$("fInd").value, indOther: $("fInd").value==="Other" ? indOther : "", site:$("fSite").value, rationale,
     plannedDays, cultureSent:$("fCult").checked, startedAt:start.toISOString() };
-  if (cultureProven() && isos.length) data.culture = cultureFor(isos, drug); else if (editId) data.culture = null;
+  const src = fSrc();
+  const srcSite = $("fSrcSpec").value==="Other" ? ($("fSrcSpecO").value.trim()||"Other") : $("fSrcSpec").value;
+  const rapidT = isos.length && src!=="cx" ? {[src]:{result:"Detected", specimen:srcSite, isolates:isos.map(i=>({organism:i.organism}))}} : null;
+  if (cultureProven() && isos.length && src==="cx") data.culture = cultureFor(isos, drug); else if (editId) data.culture = null;
+  if (cultureProven() && rapidT) data.tests = rapidT; else if (editId && !(c0x && c0x.reviews && c0x.reviews.length)) data.tests = null;
   $("addSave").disabled=true;
   try{
     if (editId){
       const c0 = courses.find(x=>x.id===editId), oldKey = c0 ? ptKey(c0) : null;
+      if (c0 && data.indication==="Targeted (culture-directed)" && data.plannedDays && (c0.reviews||[]).length && c0.status!=="stopped"){
+        const rv=[...c0.reviews], last=Object.assign({}, rv[rv.length-1]);
+        if (last.nextDue){ last.nextDue = new Date(Date.parse(data.startedAt)+data.plannedDays*D).toISOString(); rv[rv.length-1]=last; data.reviews=rv; }
+        if (c0.indication!=="Targeted (culture-directed)" && !c0.origIndication) data.origIndication = c0.indication;
+      }
       await db.doc("courses/"+editId).update(data);
       const idPatch = {icu:data.icu, icuOther:data.icuOther, bed:data.bed, codeName:data.codeName};
       if (oldKey && oldKey !== ptKey(Object.assign({}, c0, idPatch))){
@@ -958,7 +1020,8 @@ $("addForm").addEventListener("submit", async e=>{
       await db.collection("courses").add(Object.assign({}, data, { by, status:"active", reviews:[], createdAt:new Date().toISOString() }));
       for (const r of extra){
         const d2 = Object.assign({}, data, { drug:r.drug, aware:aware(r.drug), rationale:r.rationale, by, status:"active", reviews:[], createdAt:new Date().toISOString() });
-        if (cultureProven() && isos.length) d2.culture = cultureFor(isos, r.drug);
+        if (cultureProven() && isos.length && src==="cx") d2.culture = cultureFor(isos, r.drug);
+        if (cultureProven() && rapidT) d2.tests = rapidT;
         await db.collection("courses").add(d2);
       }
     }
@@ -986,7 +1049,15 @@ function syncToForm(){
   const sw = SWITCH.includes(dec);
   $("swField").hidden = !sw;
   $("planField").hidden = dec!=="Continue";
-  $("daysField").hidden = dec==="Stop";
+  const c1 = courses.find(x=>x.id===current);
+  const canTgt = dec==="Continue" && c1 && c1.indication!=="Targeted (culture-directed)";
+  $("toTgtF").hidden = !canTgt;
+  const anyPos = ["cx","fa","ngs","flu"].some(k=>["Positive","Detected"].includes((document.querySelector(`input[name="${k}"]:checked`)||{}).value));
+  if (canTgt && anyPos && !$("toTgt").dataset.touched) $("toTgt").checked = true;
+  const goTgt = canTgt && $("toTgt").checked;
+  $("toPlanLab").textContent = goTgt ? "Total targeted duration (days) — required" : "Planned total duration (days)";
+
+  $("daysField").hidden = dec==="Stop" || (!$("toTgtF").hidden && $("toTgt").checked && dec==="Continue");
   const mode = swModeVal();
   $("toDaysLab").textContent = sw && mode==="replace" ? "Review new antibiotic in (days)" : sw && mode==="add" ? "Review both in (days)" : "Review again in (days)";
   $("toSave").textContent = dec==="Stop" ? "Record and stop" : sw ? (mode==="replace" ? "Record and replace" : mode==="add" ? "Record and add" : "Record time-out") : "Record time-out";
@@ -1025,12 +1096,13 @@ document.addEventListener("click", e=>{ const b=e.target.closest(".tclear"); if(
   document.querySelectorAll(`input[name="${k}"]`).forEach(r=>r.checked=false); $(k+"Isos").innerHTML=""; if($(k+"Genes")) $(k+"Genes").value=""; syncToForm(); });
 $("swMode").addEventListener("change", syncToForm);
 $("swInd").addEventListener("change", syncToForm);
+$("toTgt").addEventListener("change", ()=>{ $("toTgt").dataset.touched="1"; syncToForm(); });
 
 function openTimeout(c){
   current = c.id; deleteArmed=false; $("toDelete").textContent="Delete entry"; $("toDelete").classList.remove("danger");
   const stopped = c.status==="stopped";
   const h = ((stopped?Date.parse(c.stoppedAt):Date.now())-Date.parse(c.startedAt))/H;
-  $("toForm").reset(); $("toErr").textContent=""; fillReasons(null); $("swRows").innerHTML=""; $("swAdd").hidden=false;
+  $("toForm").reset(); $("toErr").textContent=""; delete $("toTgt").dataset.touched; fillReasons(null); $("swRows").innerHTML=""; $("swAdd").hidden=false;
   $("toTitle").textContent = `${who(c)} · ${c.drug}`;
   $("toSub").textContent = `${stopped?"Stopped · ":""}Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${indLabel(c)} · ${c.site}${c.rationale?" · "+c.rationale:""}`;
   $("swAddTxt").textContent = `Keep ${c.drug}, add new`;
@@ -1039,7 +1111,7 @@ function openTimeout(c){
   $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3;
   if (isTargetPlan(c)){ const left=Math.ceil((plannedStop(c)-Date.now())/D); if(left>=1) $("toDays").value=Math.min(14,left); } $("toPlan").value = c.plannedDays||"";
   $("toBy").value = lastBy();
-  const prevCx = [...(c.reviews||[])].reverse().map(r=>r.culture).find(Boolean) || c.culture;
+  const prevCx = lastCulture(c); $("cxRes").dataset.pre = prevCx ? "1" : "";
   if (prevCx){ const r=document.querySelector(`input[name="cx"][value="${prevCx.result}"]`); if(r) r.checked=true;
     if (prevCx.siteSpec || prevCx.specimen) setSpec("cx", prevCx.siteSpec || (prevCx.specimen==="ETA / BAL"?"BAL":prevCx.specimen));
     if(prevCx.result==="Positive"){ const own=!prevCx.susFor||prevCx.susFor===c.drug;
@@ -1117,16 +1189,23 @@ $("toForm").addEventListener("submit", async e=>{
   if(sw && $("swInd").value==="Targeted (culture-directed)" && !swPlan) return err("Enter the planned duration for the targeted antibiotic.");
   const toPlanV=$("toPlan").value.trim(), toPlan = toPlanV?parseInt(toPlanV,10):null;
   if(dec==="Continue" && toPlanV && !(toPlan>=1&&toPlan<=42)) return err("Planned duration must be 1–42 days.");
+  const goTgt = dec==="Continue" && !$("toTgtF").hidden && $("toTgt").checked;
+  if (goTgt && !toPlan) return err("Enter the total targeted duration in days (counted from the antibiotic start).");
+  const tgtEnd = goTgt ? Date.parse(c.startedAt)+toPlan*D : 0;
+  if (goTgt && tgtEnd <= at.getTime()) return err("That duration has already passed — enter a longer total duration.");
   const by=$("toBy").value.trim(); setLastBy(by);
   const rev = { at:at.toISOString(), decision:dec, reasons, note:$("toNote").value.trim(), by, culture: culture||undefined, tests: Object.keys(tests).length?tests:undefined,
     hoursFromStart:(at-Date.parse(c.startedAt))/H };
+  if (!cxEl && $("cxRes").dataset.pre==="1") rev.cultureCleared = true;
   const patch = {};
   if (culture) patch.culture = culture;
   if (Object.keys(tests).length) patch.tests = Object.assign({}, c.tests||{}, tests);
+  if (!cxEl && $("cxRes").dataset.pre==="1"){ patch.culture = null; }
   if (sw){ rev.switchedTo = newOnes.map(r=>r.drug); rev.stoppedCurrent = stopCur; }
   if (dec==="Stop" || stopCur){ patch.status="stopped"; patch.stoppedAt=at.toISOString(); }
-  else rev.nextDue = new Date(at.getTime()+days*D).toISOString();
+  else rev.nextDue = new Date(goTgt ? tgtEnd : at.getTime()+days*D).toISOString();
   if (dec==="Continue") patch.plannedDays = toPlan;
+  if (goTgt){ patch.indication="Targeted (culture-directed)"; patch.origIndication = c.origIndication || c.indication; rev.becameTargeted = true; }
   patch.reviews = [...(c.reviews||[]), rev];
   $("toSave").disabled=true;
   try{
@@ -1304,7 +1383,7 @@ function buildReport(list, from, to, icuTitle){
   const dd=iso=>{ const d=new Date(iso); return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"2-digit"})+" "+pad(d.getHours())+":"+pad(d.getMinutes()); };
   const n=list.length;
   const orig=list.filter(c=>!isLinked(c)), linked=list.filter(isLinked);
-  const emp=list.filter(c=>c.indication==="Empirical");
+  const emp=list.filter(c=>startInd(c)==="Empirical");
   const cult=orig.filter(c=>c.cultureSent).length;
   const firstH=c=>{const r=(c.reviews||[])[0]; return r?(Date.parse(r.at)-Date.parse(c.startedAt))/H:null;};
   const leftEarly=c=>{ const r=(c.reviews||[])[0]; return r && r.decision===LEFT && (Date.parse(r.at)-Date.parse(c.startedAt))<=deadlineH(c)*H; };
@@ -1312,7 +1391,7 @@ function buildReport(list, from, to, icuTitle){
   const onTime=elig.filter(c=>{const s=Date.parse(c.startedAt), lim=deadlineH(c)*H, r=(c.reviews||[])[0];
     return r ? Date.parse(r.at)-s<=lim : (c.status==="stopped" && Date.parse(c.stoppedAt)-s<=lim);}).length;
   const reviewed=orig.map(firstH).filter(x=>x!=null);
-  const alertable=orig.filter(c=>c.indication==="Empirical"||isProph(c)).filter(c=>{const s=Date.parse(c.startedAt), lim=deadlineH(c)*H, r=(c.reviews||[])[0];
+  const alertable=orig.filter(c=>startInd(c)==="Empirical"||startInd(c)==="Prophylaxis").filter(c=>{const s=Date.parse(c.startedAt), lim=deadlineH(c)*H, r=(c.reviews||[])[0];
     if(c.ack) return true; if(r) return Date.parse(r.at)-s>=lim; if(c.status==="stopped") return Date.parse(c.stoppedAt)-s>=lim; return now-s>=lim;});
   const acked=alertable.filter(c=>c.ack);
   const proph=list.filter(isProph);
@@ -1361,7 +1440,7 @@ function buildReport(list, from, to, icuTitle){
     const drugs=[...new Set([...revs.map(r=>r.fromDrug).filter(Boolean), c.drug])].join(" → ");
     const fH=firstH(c), lim=deadlineH(c);
     const dur=((c.status==="stopped"?Date.parse(c.stoppedAt):now)-Date.parse(c.startedAt))/D;
-    const cx=[...revs].reverse().map(r=>r.culture).find(Boolean) || c.culture;
+    const cx=lastCulture(c);
     const tx=[...revs].reverse().map(r=>r.tests).find(Boolean) || c.tests || {};
     const rt=k=>{ const t=tx[k]; if(!t) return "–"; return `${esc(t.specimen)}: ${t.result==="Detected" ? esc((t.isolates||[]).map(i=>i.organism).join(", "))+(t.genes?" · "+esc(t.genes):"") : esc(t.result)}`; };
     const cxT = !cx ? "–" : cx.result==="Positive" ? isolatesOf(cx).map(i=>`${esc(i.organism)} (${esc(i.specimen)})${i.sus&&(!cx.susFor||cx.susFor===c.drug)?" · "+esc(String(i.sus)[0]):""}`).join("; ") : esc(cx.result);
