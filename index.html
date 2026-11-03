@@ -787,15 +787,20 @@ function legacyTests(d){
   (d.reviews||[]).forEach(r=>{ const b=splitLegacy(r.culture); if(b.t){ r.culture=b.cx||undefined; r.tests=Object.assign({}, b.t, r.tests||{}); if(!b.cx) r.cultureCleared=false; } });
   return d;
 }
+function curTests(c){
+  const t = Object.assign({}, c.tests||{});
+  (c.reviews||[]).forEach(r=>{ if(r.tests) Object.assign(t, r.tests); });
+  return Object.keys(t).length ? t : null;
+}
 function lastCulture(c){
   for (const r of [...(c.reviews||[])].reverse()){ if (r.cultureCleared) return null; if (r.culture) return r.culture; }
   return c.culture || null;
 }
-function dxHtml(cx, tx){
+function dxHtml(cx, tx, stopped){
   const rows=[]; const t=tx||{};
   const anyRapid = Object.keys(TESTS).some(k=>t[k]);
   if (cx) rows.push(["Culture", cultureTxt(cx).replace(/^Culture: /,"")]);
-  else if (anyRapid) rows.push(["Culture","awaited"]);
+  else if (anyRapid && !stopped) rows.push(["Culture","awaited"]);
   Object.keys(TESTS).forEach(k=>{ const r=t[k]; if(!r) return;
     rows.push([TESTS[k], `${r.result==="Detected" ? (r.isolates||[]).map(i=>i.organism).join(", ")+(r.genes?" · "+r.genes:"") : r.result} (${r.specimen})`]); });
   return rows.length ? `<div class="dx">${rows.map(([a,b])=>`<b>${esc(a)}</b><span>${esc(b)}</span>`).join("")}</div>` : "";
@@ -902,7 +907,7 @@ function render(){
             ${st.ps?`<span class="tick" style="left:${pct((st.ps-start)/H)};background:var(--over);opacity:.9"></span>`:""}
           </div>
           <div class="meta">${last}${c.demo?' · <i>example</i>':''}</div>
-          ${dxHtml(cx, tx)}
+          ${dxHtml(cx, curTests(c) || tx)}
           ${st.ps?(st.pastStop?`<div><span class="stoptag">Past planned stop (${+c.plannedDays||0} d, ${fdate(st.ps)}) — stop or extend</span></div>`:`<div class="meta">Planned stop ${fdate(st.ps)} (${+c.plannedDays||0} d)</div>`):""}
           ${ackTxt}
         </div>
@@ -964,7 +969,7 @@ function render(){
           ${isLinked(x)?`<div class="linkline">${x.linkMode==="add"?"Added to":"From"} ${esc(x.linkedFromDrug)}</div>`:""}
           <div class="meta"><span class="mono">${fmt(x.startedAt)} → ${fmt(x.stoppedAt)} · ${((Date.parse(x.stoppedAt)-s0)/D).toFixed(1)} d</span> · ${esc(indLabel(x))}</div>
           <div class="meta">First time-out: <span style="${late?'color:var(--over);font-weight:700':''}">${first}</span> · Outcome: ${out}</div>
-          ${dxHtml(lastCulture(x), x.tests || [...revs].reverse().map(r=>r.tests).find(Boolean))}
+          ${dxHtml(lastCulture(x), curTests(x), true)}
           <button class="btn quiet" type="button" data-to="${esc(x.id)}" style="align-self:flex-start;padding-left:0">History &amp; delete</button>
         </div></article>`; }).join("")}</div>`:""}
     </section>`; }).join("")}</div>`;
@@ -998,6 +1003,7 @@ function openAdd(c, preset){
   // culture fields (prefill on edit)
   $("fMore").innerHTML=""; $("fMoreAdd").hidden = !!c; $("fIsos").innerHTML="";
   document.querySelector('input[name="fsrc"][value="cx"]').checked = true; $("fSrcSiteF").hidden = true; $("fSrcSpecO").value="";
+  if (c) c = Object.assign({}, c, {culture: lastCulture(c), tests: curTests(c)});
   $("fHasRes").checked = !!(c && ((c.culture && c.culture.result==="Positive") || (c.tests && Object.keys(TESTS).some(k=>c.tests[k] && c.tests[k].result==="Detected"))));
   if (c && c.culture && c.culture.result==="Positive"){
     const own = !c.culture.susFor || c.culture.susFor===c.drug;
@@ -1069,15 +1075,21 @@ $("addForm").addEventListener("submit", async e=>{
   const srcSite = $("fSrcSpec").value==="Other" ? ($("fSrcSpecO").value.trim()||"Other") : $("fSrcSpec").value;
   const rapidT = isos.length && src!=="cx" ? {[src]:{result:"Detected", specimen:srcSite, isolates:isos.map(i=>({organism:i.organism}))}} : null;
   if (resOn() && isos.length && src==="cx") data.culture = cultureFor(isos, drug); else if (editId) data.culture = null;
-  if (resOn() && rapidT) data.tests = Object.assign({}, (c0x&&c0x.tests)||{}, rapidT);
-  else if (editId && !resOn() && c0x && c0x.tests && !(c0x.reviews||[]).some(r=>r.tests)) data.tests = null;
-  else if (editId && resOn() && src==="cx" && c0x && c0x.tests && !(c0x.reviews||[]).some(r=>r.tests)) data.tests = null; else if (editId && !(c0x && c0x.reviews && c0x.reviews.length)) data.tests = null;
+  if (editId && c0x){
+    // the edit form is the single source of truth for results: what it shows is what is saved
+    const prevT = curTests(c0x) || {};
+    if (!resOn()) data.tests = null;
+    else if (rapidT){ const t = Object.assign({}, prevT, rapidT); data.tests = t; }
+    else data.tests = Object.keys(prevT).length ? prevT : null;
+    if ((c0x.reviews||[]).some(r=>r.culture || r.tests || r.cultureCleared))
+      data.reviews = c0x.reviews.map(r=>{ const {culture, tests, cultureCleared, ...rest} = r; return rest; });
+  } else if (resOn() && rapidT) data.tests = rapidT;
   $("addSave").disabled=true;
   try{
     if (editId){
       const c0 = courses.find(x=>x.id===editId), oldKey = c0 ? ptKey(c0) : null;
       if (c0 && data.indication==="Targeted (culture-directed)" && data.plannedDays && (c0.reviews||[]).length && c0.status!=="stopped"){
-        const rv=[...c0.reviews], last=Object.assign({}, rv[rv.length-1]);
+        const rv=[...(data.reviews||c0.reviews)], last=Object.assign({}, rv[rv.length-1]);
         if (last.nextDue){ last.nextDue = new Date(Date.parse(data.startedAt)+data.plannedDays*D).toISOString(); rv[rv.length-1]=last; data.reviews=rv; }
         if (c0.indication!=="Targeted (culture-directed)" && !c0.origIndication) data.origIndication = c0.indication;
       }
