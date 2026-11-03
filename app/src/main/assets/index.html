@@ -1491,8 +1491,16 @@ function buildReport(list, from, to, icuTitle){
   const ptGroups=Object.values(list.reduce((a,c)=>{ (a[ptKey(c)]=a[ptKey(c)]||[]).push(c); return a; },{}));
   const rapidRows=[]; Object.keys(TESTS).forEach(k=>{ const sent=ptAny(k), det=ptAny(k,1); if(!sent) return;
     rapidRows.push({t:TESTS[k], sent, det});
-    const m={}; ptGroups.forEach(cs=>{ new Set(cs.flatMap(c=>[c.tests,...(c.reviews||[]).map(r=>r.tests)]).filter(t=>t&&t[k]&&t[k].result==="Detected").flatMap(t=>(t[k].isolates||[]).flatMap(i=>canonOrgs(i.organism)))).forEach(o=>m[o]=(m[o]||0)+1); });
-    Object.entries(m).sort((a,b)=>b[1]-a[1]).forEach(([o,v])=>rapidRows.push({o, v})); });
+    // by site: patients tested / positive at each site, organisms found at that site
+    const site={}; const S=sp=>site[sp]=site[sp]||{sent:0,det:0,org:{}};
+    ptGroups.forEach(cs=>{ const ents=cs.flatMap(c=>[c.tests,...(c.reviews||[]).map(r=>r.tests)]).filter(t=>t&&t[k]).map(t=>t[k]);
+      const sp=e=>(e.specimen&&e.specimen!=="Not recorded")?tidy(e.specimen):"Site not recorded";
+      new Set(ents.map(sp)).forEach(x=>S(x).sent++);
+      new Set(ents.filter(e=>e.result==="Detected").map(sp)).forEach(x=>S(x).det++);
+      const og={}; ents.filter(e=>e.result==="Detected").forEach(e=>(e.isolates||[]).flatMap(i=>canonOrgs(i.organism)).forEach(o=>(og[sp(e)]=og[sp(e)]||new Set()).add(o)));
+      Object.entries(og).forEach(([x,set])=>set.forEach(o=>S(x).org[o]=(S(x).org[o]||0)+1)); });
+    Object.entries(site).sort((a,b)=>b[1].sent-a[1].sent).forEach(([x,v])=>{ rapidRows.push({s:x, sent:v.sent, det:v.det});
+      Object.entries(v.org).sort((a,b)=>b[1]-a[1]).forEach(([o,n])=>rapidRows.push({o, v:n})); }); });
   const fc=orig.filter(firstRev).map(c=>({decision:firstRev(c).decision, culture:fcx(c)}));
   const withCx=fc.filter(r=>r.culture && r.culture.result!=="Pending" && r.culture.result!=="Not sent");
   const pos=fc.filter(r=>r.culture&&r.culture.result==="Positive");
@@ -1517,7 +1525,9 @@ function buildReport(list, from, to, icuTitle){
   const nCxPos = P.filter(cs=>cs.some(c=>cultOrgs(c).length)).length;
   const rapidTbl=()=>`<div class="box"><h3>Rapid diagnostics <span class="u">patients</span></h3><table class="mini"><tbody>
     ${rapidRows.length?`<tr class="hd"><td></td><td class="r">Tested</td><td class="r m">Positive</td></tr>`:""}
-    ${rapidRows.map(x=>x.t!=null?`<tr><td><b>${esc(x.t)}</b></td><td class="r">${x.sent}</td><td class="r m">${x.det} (${pct(x.det,x.sent)})</td></tr>`:`<tr class="sub"><td>· ${esc(x.o)}</td><td class="r"></td><td class="r m">${x.v}</td></tr>`).join("")||'<tr><td class="m">None</td></tr>'}
+    ${rapidRows.map(x=>x.t!=null?`<tr class="tst"><td><b>${esc(x.t)}</b></td><td class="r"><b>${x.sent}</b></td><td class="r m"><b>${x.det} (${pct(x.det,x.sent)})</b></td></tr>`
+      : x.s!=null?`<tr class="site"><td>${esc(x.s)}</td><td class="r">${x.sent}</td><td class="r m">${x.det} (${pct(x.det,x.sent)})</td></tr>`
+      :`<tr class="sub"><td>· ${esc(x.o)}</td><td class="r"></td><td class="r m">${x.v}</td></tr>`).join("")||'<tr><td class="m">None</td></tr>'}
     ${rapidDe?`<tr><td colspan="2">De-escalated on a rapid result before culture</td><td class="r m">${rapidDe} course${rapidDe===1?"":"s"}</td></tr>`:""}</tbody></table></div>`;
   const abx=list.filter(c=>!["Antiviral","Antifungal"].includes(AW_LABEL[aware(c.drug)]));
   const awRows=count(abx,c=>AW_LABEL[aware(c.drug)]).concat(count(list.filter(c=>!abx.includes(c)),c=>AW_LABEL[aware(c.drug)]+" (not in AWaRe)").map(([k,v])=>[k,v,"np"]));
@@ -1578,7 +1588,7 @@ function buildReport(list, from, to, icuTitle){
   .kpi .v{font-size:18px;font-weight:700;color:#1F5D4C;line-height:1.1} .kpi .l{font-weight:600;font-size:9.5px;line-height:1.25} .kpi .s{color:#56665F;font-size:8.5px;margin-top:2px}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;margin-top:6px}
   .box{border:1px solid #D3DDDA;border-radius:6px;padding:7px 9px;break-inside:avoid}
-  table{border-collapse:collapse;width:100%} .mini td{padding:2px 0;border-bottom:1px dotted #D3DDDA} .mini td.r{width:30px;padding-left:8px;white-space:nowrap;text-align:right} .mini td.m{width:38px} .mini tr.sub td{color:#4A5A5E;font-size:.95em;border-bottom-style:none} .mini tr.sub td:first-child{padding-left:14px} .mini tr.hd td{font-size:8px;color:#8A9A9E;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #D3DDDA} .mini td.m{white-space:nowrap} h3 .u{font-weight:500;text-transform:none;letter-spacing:0;color:#8A9A9E} .mini tr:last-child td{border:0}
+  table{border-collapse:collapse;width:100%} .mini td{padding:2px 0;border-bottom:1px dotted #D3DDDA} .mini td.r{width:30px;padding-left:8px;white-space:nowrap;text-align:right} .mini td.m{width:38px} .mini tr.sub td{color:#4A5A5E;font-size:.95em;border-bottom-style:none} .mini tr.sub td:first-child{padding-left:22px} .mini tr.site td:first-child{padding-left:10px} .mini tr.site td{border-bottom-style:none} .mini tr.tst td{border-top:1px solid #D3DDDA} .mini tr.hd td{font-size:8px;color:#8A9A9E;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #D3DDDA} .mini td.m{white-space:nowrap} h3 .u{font-weight:500;text-transform:none;letter-spacing:0;color:#8A9A9E} .mini tr:last-child td{border:0}
   .r{text-align:right} .m{color:#56665F;padding-left:6px}
   .list{font-size:8.6px} .list th{background:#1F5D4C;color:#fff;text-align:left;font-size:7.8px;letter-spacing:.03em;text-transform:uppercase;padding:4px 4px}
   .list td{padding:3px 4px;border-bottom:1px solid #E3E9E7;vertical-align:top} .list tr:nth-child(even) td{background:#F5F8F7}
