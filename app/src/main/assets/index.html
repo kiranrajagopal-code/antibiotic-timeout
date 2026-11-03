@@ -456,7 +456,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <div class="chips" id="cxRes"><label class="chip"><input type="radio" name="cx" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="cx" value="No growth"><span>No growth</span></label><label class="chip"><input type="radio" name="cx" value="Positive"><span>Positive</span></label></div>
       <div id="cxMore" hidden>
         <div class="row2">
-          <div class="field"><label for="cxSpec">Site</label><select id="cxSpec"><option>Blood</option><option>BAL</option><option>ETA</option><option>Urine</option><option>CSF</option><option>Fluid</option><option>Pus / tissue</option><option>Line tip</option><option>Other</option></select></div>
+          <div class="field"><label for="cxSpec">Site</label><select id="cxSpec"><option>Blood</option><option>BAL</option><option>ETA</option><option>Urine</option><option>CSF</option><option>Fluid</option><option>Pus / tissue</option><option>Line tip</option><option>FLU NGS</option><option>Other</option></select></div>
           <div class="field" id="cxSpecOF" hidden><label for="cxSpecO">Other specimen</label><input type="text" id="cxSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
         </div>
         <div id="cxPos" hidden>
@@ -470,7 +470,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <div class="chips" id="faRes"><label class="chip"><input type="radio" name="fa" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="fa" value="Not detected"><span>Not detected</span></label><label class="chip"><input type="radio" name="fa" value="Detected"><span>Detected</span></label></div>
       <div id="faMore" hidden>
         <div class="row2">
-          <div class="field"><label for="faSpec">Site</label><select id="faSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>Other</option></select></div>
+          <div class="field"><label for="faSpec">Site</label><select id="faSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>FLU NGS</option><option>Other</option></select></div>
           <div class="field" id="faSpecOF" hidden><label for="faSpecO">Other specimen</label><input type="text" id="faSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
         </div>
         <div id="faPos" hidden>
@@ -485,7 +485,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <div class="chips" id="ngsRes"><label class="chip"><input type="radio" name="ngs" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="ngs" value="Not detected"><span>Not detected</span></label><label class="chip"><input type="radio" name="ngs" value="Detected"><span>Detected</span></label></div>
       <div id="ngsMore" hidden>
         <div class="row2">
-          <div class="field"><label for="ngsSpec">Site</label><select id="ngsSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>Other</option></select></div>
+          <div class="field"><label for="ngsSpec">Site</label><select id="ngsSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>FLU NGS</option><option>Other</option></select></div>
           <div class="field" id="ngsSpecOF" hidden><label for="ngsSpecO">Other specimen</label><input type="text" id="ngsSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
         </div>
         <div id="ngsPos" hidden>
@@ -694,7 +694,7 @@ function syncAlarms(){
 }
 
 /* ---------- culture isolates (one or more organisms) ---------- */
-const SPECIMENS = ["Blood", "BAL", "ETA", "Urine", "CSF", "Fluid", "Pus / tissue", "Line tip", "Other"];
+const SPECIMENS = ["Blood", "BAL", "ETA", "Urine", "CSF", "Fluid", "Pus / tissue", "Line tip", "FLU NGS", "Other"];
 const TESTS = {fa:"FilmArray", ngs:"NGS"};
 const isolatesOf = cx => !cx ? [] : Array.isArray(cx.isolates) && cx.isolates.length ? cx.isolates : (cx.organism ? [{specimen:cx.specimen, organism:cx.organism, sus:cx.sus}] : []);
 function cultureFor(isos, drug){
