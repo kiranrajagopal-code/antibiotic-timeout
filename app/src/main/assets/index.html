@@ -1484,8 +1484,12 @@ function buildReport(list, from, to, icuTitle){
   const anyT=(c,k,pos)=>[...(c.reviews||[]).map(r=>r.tests),c.tests].some(t=>t&&t[k]&&(!pos||t[k].result==="Detected"));
   const rapidDe=list.filter(c=>(c.reviews||[]).some(r=>r.decision==="De-escalate" && r.tests && Object.values(r.tests).some(t=>t.result==="Detected") && !(r.culture && r.culture.result==="Positive"))).length;
   const ptAny=(k,pos)=>Object.values(list.reduce((m,c)=>{ (m[ptKey(c)]=m[ptKey(c)]||[]).push(c); return m; },{})).filter(cs=>cs.some(c=>anyT(c,k,pos))).length;
-  const rapidRows=[]; Object.keys(TESTS).forEach(k=>{ const sent=ptAny(k), det=ptAny(k,1); if(sent) rapidRows.push([`${TESTS[k]} — ${det} of ${sent} positive`, sent]); });
-  if (rapidDe) rapidRows.push(["De-escalated on a rapid test before culture (courses)", rapidDe]);
+  const ptGroups=Object.values(list.reduce((a,c)=>{ (a[ptKey(c)]=a[ptKey(c)]||[]).push(c); return a; },{}));
+  const rapidRows=[]; Object.keys(TESTS).forEach(k=>{ const sent=ptAny(k), det=ptAny(k,1); if(!sent) return;
+    rapidRows.push([`${TESTS[k]} — ${det} of ${sent} positive`, sent]);
+    const m={}; ptGroups.forEach(cs=>{ new Set(cs.flatMap(c=>[c.tests,...(c.reviews||[]).map(r=>r.tests)]).filter(t=>t&&t[k]&&t[k].result==="Detected").flatMap(t=>(t[k].isolates||[]).map(i=>canonOrg(i.organism)))).forEach(o=>m[o]=(m[o]||0)+1); });
+    Object.entries(m).sort((a,b)=>b[1]-a[1]).forEach(([o,v])=>rapidRows.push([o, v, "sub"])); });
+  if (rapidDe) rapidRows.push(["De-escalated on a rapid test before culture (courses)", rapidDe, "np"]);
   const rapidOrgRows = (()=>{ const m={}; Object.values(list.reduce((a,c)=>{ (a[ptKey(c)]=a[ptKey(c)]||[]).push(c); return a; },{})).forEach(cs=>{
       new Set(cs.flatMap(c=>[c.tests,...(c.reviews||[]).map(r=>r.tests)].filter(Boolean).flatMap(t=>Object.keys(TESTS).flatMap(k=>t[k]&&t[k].result==="Detected"?(t[k].isolates||[]).map(i=>canonOrg(i.organism)+" ("+TESTS[k]+")"):[])))).forEach(v=>m[v]=(m[v]||0)+1); });
     return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10); })();
@@ -1509,7 +1513,7 @@ function buildReport(list, from, to, icuTitle){
   const ptCount=f=>{ const m={}; P.forEach(cs=>{ new Set(cs.flatMap(f).filter(Boolean)).forEach(v=>m[v]=(m[v]||0)+1); }); return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
   const cultOrgs = c => [lastCulture(c), ...(c.reviews||[]).map(r=>r.culture)].filter(cx=>cx&&cx.result==="Positive").flatMap(cx=>isolatesOf(cx).map(i=>canonOrg(i.organism)));
   const orgRows = ptCount(c=>cultOrgs(c)).slice(0,10);
-  const tbl=(title,rows,total,unit)=>`<div class="box"><h3>${esc(title)}${unit?` <span class="u">${esc(unit)}</span>`:""}</h3><table class="mini"><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="r">${v}</td><td class="r m">${total?pct(v,total):""}</td></tr>`).join("")||'<tr><td class="m">None</td></tr>'}</tbody></table></div>`;
+  const tbl=(title,rows,total,unit)=>`<div class="box"><h3>${esc(title)}${unit?` <span class="u">${esc(unit)}</span>`:""}</h3><table class="mini"><tbody>${rows.map(([k,v,f])=>`<tr${f==="sub"?' class="sub"':''}><td>${f==="sub"?"· ":""}${esc(k)}</td><td class="r">${v}</td><td class="r m">${total&&!f?pct(v,total):""}</td></tr>`).join("")||'<tr><td class="m">None</td></tr>'}</tbody></table></div>`;
   const kpis=[
     ["Courses started", n, `${orig.length} new · ${linked.length} after a switch`],
     ["Empirical", emp.length, pct(emp.length,n)+" of courses"],
@@ -1564,7 +1568,7 @@ function buildReport(list, from, to, icuTitle){
   .kpi .v{font-size:18px;font-weight:700;color:#1F5D4C;line-height:1.1} .kpi .l{font-weight:600;font-size:9.5px;line-height:1.25} .kpi .s{color:#56665F;font-size:8.5px;margin-top:2px}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;margin-top:6px}
   .box{border:1px solid #D3DDDA;border-radius:6px;padding:7px 9px;break-inside:avoid}
-  table{border-collapse:collapse;width:100%} .mini td{padding:2px 0;border-bottom:1px dotted #D3DDDA} .mini td.r{width:30px;padding-left:8px;white-space:nowrap;text-align:right} .mini td.m{width:38px} h3 .u{font-weight:500;text-transform:none;letter-spacing:0;color:#8A9A9E} .mini tr:last-child td{border:0}
+  table{border-collapse:collapse;width:100%} .mini td{padding:2px 0;border-bottom:1px dotted #D3DDDA} .mini td.r{width:30px;padding-left:8px;white-space:nowrap;text-align:right} .mini td.m{width:38px} .mini tr.sub td{color:#4A5A5E;font-size:.95em;border-bottom-style:none} .mini tr.sub td:first-child{padding-left:14px} h3 .u{font-weight:500;text-transform:none;letter-spacing:0;color:#8A9A9E} .mini tr:last-child td{border:0}
   .r{text-align:right} .m{color:#56665F;padding-left:6px}
   .list{font-size:8.6px} .list th{background:#1F5D4C;color:#fff;text-align:left;font-size:7.8px;letter-spacing:.03em;text-transform:uppercase;padding:4px 4px}
   .list td{padding:3px 4px;border-bottom:1px solid #E3E9E7;vertical-align:top} .list tr:nth-child(even) td{background:#F5F8F7}
@@ -1580,7 +1584,7 @@ function buildReport(list, from, to, icuTitle){
   <div class="meta"><b>ICU:</b> ${esc(icuTitle||"All ICUs")}<br><b>Period:</b> ${from.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} – ${to.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}<br><b>Generated:</b> ${dd(new Date().toISOString())}</div></header>
   <div class="kpis">${kpis.map(([l,v,s2])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${esc(l)}</div><div class="s">${esc(s2)}</div></div>`).join("")}</div>
   <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n,"courses")}${tbl("ICU",ptCount(c=>[icuName(c)||"Not recorded"]),nP,"patients")}${tbl("Indication at start",count(list,c=>{ const si=startInd(c); return si==="Other" ? "Other: "+(c.indOther||"") : si; }).concat(list.filter(c=>c.origIndication&&c.origIndication!==c.indication).length?[["→ later changed to targeted", list.filter(c=>c.origIndication&&c.origIndication!==c.indication).length]]:[]),n,"courses")}${tbl("Suspected source",ptCount(c=>[c.site]),nP,"patients")}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
-  <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n,"courses")}${tbl("Organisms — culture",orgRows,nP,"patients")}${tbl("Rapid diagnostics",rapidRows.concat(rapidOrgRows),nP,"patients")}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n,"courses")}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
+  <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n,"courses")}${tbl("Organisms — culture",orgRows,nP,"patients")}${tbl("Rapid diagnostics",rapidRows,nP,"patients")}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n,"courses")}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${pts.length} patient${pts.length===1?"":"s"}, ${n} antibiotic course${n===1?"":"s"})</h2>
   <table class="list"><thead><tr><th>S.No</th><th>ICU</th><th>Bed</th><th>Name</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>FilmArray</th><th>NGS</th><th>FLU NGS</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
   <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h for empirical, 24 h for prophylaxis, or by the end of the planned course for targeted, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
