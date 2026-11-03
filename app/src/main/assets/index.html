@@ -450,13 +450,13 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <div class="chips" id="toReasons"></div>
     </div>
 
-    <div class="tests-hint">Diagnostics — mark any one or more (culture, FilmArray, NGS). Add the rest at a later review when results arrive.</div>
+    <div class="tests-hint">Diagnostics — mark any one or more (culture, FilmArray, NGS, FLU NGS). Add the rest at a later review when results arrive.</div>
     <div class="sec tblock" data-t="cx">
       <div class="thead"><span class="lab">Culture</span><button class="btn quiet tclear" type="button" data-t="cx" hidden>Clear</button></div>
       <div class="chips" id="cxRes"><label class="chip"><input type="radio" name="cx" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="cx" value="No growth"><span>No growth</span></label><label class="chip"><input type="radio" name="cx" value="Positive"><span>Positive</span></label></div>
       <div id="cxMore" hidden>
         <div class="row2">
-          <div class="field"><label for="cxSpec">Site</label><select id="cxSpec"><option>Blood</option><option>BAL</option><option>ETA</option><option>Urine</option><option>CSF</option><option>Fluid</option><option>Pus / tissue</option><option>Line tip</option><option>FLU NGS</option><option>Other</option></select></div>
+          <div class="field"><label for="cxSpec">Site</label><select id="cxSpec"><option>Blood</option><option>BAL</option><option>ETA</option><option>Urine</option><option>CSF</option><option>Fluid</option><option>Pus / tissue</option><option>Line tip</option><option>Other</option></select></div>
           <div class="field" id="cxSpecOF" hidden><label for="cxSpecO">Other specimen</label><input type="text" id="cxSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
         </div>
         <div id="cxPos" hidden>
@@ -470,7 +470,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <div class="chips" id="faRes"><label class="chip"><input type="radio" name="fa" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="fa" value="Not detected"><span>Not detected</span></label><label class="chip"><input type="radio" name="fa" value="Detected"><span>Detected</span></label></div>
       <div id="faMore" hidden>
         <div class="row2">
-          <div class="field"><label for="faSpec">Site</label><select id="faSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>FLU NGS</option><option>Other</option></select></div>
+          <div class="field"><label for="faSpec">Site</label><select id="faSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>Other</option></select></div>
           <div class="field" id="faSpecOF" hidden><label for="faSpecO">Other specimen</label><input type="text" id="faSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
         </div>
         <div id="faPos" hidden>
@@ -485,7 +485,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       <div class="chips" id="ngsRes"><label class="chip"><input type="radio" name="ngs" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="ngs" value="Not detected"><span>Not detected</span></label><label class="chip"><input type="radio" name="ngs" value="Detected"><span>Detected</span></label></div>
       <div id="ngsMore" hidden>
         <div class="row2">
-          <div class="field"><label for="ngsSpec">Site</label><select id="ngsSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>FLU NGS</option><option>Other</option></select></div>
+          <div class="field"><label for="ngsSpec">Site</label><select id="ngsSpec"><option>Blood</option><option>BAL</option><option>CSF</option><option>Fluid</option><option>Other</option></select></div>
           <div class="field" id="ngsSpecOF" hidden><label for="ngsSpecO">Other specimen</label><input type="text" id="ngsSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
         </div>
         <div id="ngsPos" hidden>
@@ -496,6 +496,20 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
       </div>
     </div>
 
+    <div class="sec tblock" data-t="flu">
+      <div class="thead"><span class="lab">FLU NGS</span><button class="btn quiet tclear" type="button" data-t="flu" hidden>Clear</button></div>
+      <div class="chips" id="fluRes"><label class="chip"><input type="radio" name="flu" value="Pending"><span>Pending</span></label><label class="chip"><input type="radio" name="flu" value="Not detected"><span>Not detected</span></label><label class="chip"><input type="radio" name="flu" value="Detected"><span>Detected</span></label></div>
+      <div id="fluMore" hidden>
+        <div class="row2">
+          <div class="field"><label for="fluSpec">Site</label><select id="fluSpec"><option>Nasopharyngeal swab</option><option>Throat swab</option><option>BAL</option><option>ETA</option><option>Other</option></select></div>
+          <div class="field" id="fluSpecOF" hidden><label for="fluSpecO">Other specimen</label><input type="text" id="fluSpecO" maxlength="40" autocomplete="off" placeholder="e.g. Pleural fluid"></div>
+        </div>
+        <div id="fluPos" hidden>
+          <div class="isos" id="fluIsos"></div>
+          <button class="btn quiet" type="button" id="fluIsoAdd" style="align-self:flex-start;padding-left:0;margin-top:8px">+ Add another organism</button>
+        </div>
+      </div>
+    </div>
     <div class="sec" id="swField" hidden>
       <span class="lab" id="swLab">Change antibiotic</span>
       <div class="chips dec" id="swMode">
@@ -694,8 +708,8 @@ function syncAlarms(){
 }
 
 /* ---------- culture isolates (one or more organisms) ---------- */
-const SPECIMENS = ["Blood", "BAL", "ETA", "Urine", "CSF", "Fluid", "Pus / tissue", "Line tip", "FLU NGS", "Other"];
-const TESTS = {fa:"FilmArray", ngs:"NGS"};
+const SPECIMENS = ["Blood", "BAL", "ETA", "Urine", "CSF", "Fluid", "Pus / tissue", "Line tip", "Other"];
+const TESTS = {fa:"FilmArray", ngs:"NGS", flu:"FLU NGS"};
 const isolatesOf = cx => !cx ? [] : Array.isArray(cx.isolates) && cx.isolates.length ? cx.isolates : (cx.organism ? [{specimen:cx.specimen, organism:cx.organism, sus:cx.sus}] : []);
 function cultureFor(isos, drug){
   const isolates = isos.map(i=>({specimen:i.specimen, organism:i.organism, sus:(i.susBy||{})[drug]||""}));
@@ -706,7 +720,7 @@ function setSpec(k, v){ const sel=$(k+"Spec"), list=[...sel.options].map(o=>o.va
 function readRapid(k){
   const r=(document.querySelector(`input[name="${k}"]:checked`)||{}).value; if(!r) return null;
   const t={result:r, specimen:specOf(k)};
-  if (r==="Detected"){ t.isolates = readIsos($(k+"Isos")).map(i=>({organism:i.organism})); t.genes=$(k+"Genes").value.trim(); }
+  if (r==="Detected"){ t.isolates = readIsos($(k+"Isos")).map(i=>({organism:i.organism})); t.genes=$(k+"Genes") ? $(k+"Genes").value.trim() : ""; }
   return t;
 }
 function rapidTxt(tests){
@@ -977,7 +991,7 @@ function syncToForm(){
   $("toDaysLab").textContent = sw && mode==="replace" ? "Review new antibiotic in (days)" : sw && mode==="add" ? "Review both in (days)" : "Review again in (days)";
   $("toSave").textContent = dec==="Stop" ? "Record and stop" : sw ? (mode==="replace" ? "Record and replace" : mode==="add" ? "Record and add" : "Record time-out") : "Record time-out";
   const c0=courses.find(x=>x.id===current);
-  ["cx","fa","ngs"].forEach(k=>{
+  ["cx","fa","ngs","flu"].forEach(k=>{
     const v=(document.querySelector(`input[name="${k}"]:checked`)||{}).value;
     $(k+"More").hidden = !v; document.querySelector(`.tclear[data-t="${k}"]`).hidden = !v;
     $(k+"SpecOF").hidden = $(k+"Spec").value!=="Other";
@@ -997,11 +1011,11 @@ $("toDec").addEventListener("change", e=>{ if(e.target.name==="dec"){
   // Escalate: no default (add-on or replace are both common). De-escalate / IV to oral: default replace.
   // Escalate / New infection: no default (add-on or replace are both common). De-escalate / IV to oral: default replace.
   document.querySelectorAll('input[name="swMode"]').forEach(r=>r.checked = !["Escalate","New infection"].includes(d) && r.value==="replace");
-  const cxNow = ["cx","fa","ngs"].some(k=>["Positive","Detected"].includes((document.querySelector(`input[name="${k}"]:checked`)||{}).value)) ? "Positive" : "";
+  const cxNow = ["cx","fa","ngs","flu"].some(k=>["Positive","Detected"].includes((document.querySelector(`input[name="${k}"]:checked`)||{}).value)) ? "Positive" : "";
   $("swInd").value = d==="New infection" ? "Empirical" : (cxNow==="Positive" ? "Targeted (culture-directed)" : "Empirical");
   if (d==="New infection"){ const c=courses.find(x=>x.id===current); $("swSite").value = c&&c.site || "Pneumonia"; $("swCult").checked=true; }
   syncToForm(); } });
-["cx","fa","ngs"].forEach(k=>{
+["cx","fa","ngs","flu"].forEach(k=>{
   $(k+"Res").addEventListener("change", syncToForm);
   $(k+"Spec").addEventListener("change", ()=>{ $(k+"SpecOF").hidden = $(k+"Spec").value!=="Other"; if($(k+"Spec").value==="Other") $(k+"SpecO").focus();
     if (k==="cx") $("cxIsos").querySelectorAll(".isoSpec").forEach(sel=>{ sel.value=$("cxSpec").value; }); });
@@ -1021,7 +1035,7 @@ function openTimeout(c){
   $("toSub").textContent = `${stopped?"Stopped · ":""}Day ${Math.floor(h/24)+1} · ${Math.floor(h)} h on therapy · ${indLabel(c)} · ${c.site}${c.rationale?" · "+c.rationale:""}`;
   $("swAddTxt").textContent = `Keep ${c.drug}, add new`;
   $("swRepTxt").textContent = `Stop ${c.drug}, replace`;
-  ["cx","fa","ngs"].forEach(k=>{ $(k+"Isos").innerHTML=""; $(k+"Spec").selectedIndex=0; $(k+"SpecO").value=""; if($(k+"Genes")) $(k+"Genes").value=""; });
+  ["cx","fa","ngs","flu"].forEach(k=>{ $(k+"Isos").innerHTML=""; $(k+"Spec").selectedIndex=0; $(k+"SpecO").value=""; if($(k+"Genes")) $(k+"Genes").value=""; });
   $("toAt").value = toLocalInput(new Date()); $("toDays").value = 3;
   if (isTargetPlan(c)){ const left=Math.ceil((plannedStop(c)-Date.now())/D); if(left>=1) $("toDays").value=Math.min(14,left); } $("toPlan").value = c.plannedDays||"";
   $("toBy").value = lastBy();
@@ -1071,7 +1085,7 @@ $("toForm").addEventListener("submit", async e=>{
   if(!reasons.length) return err("Pick at least one reason.");
   const cxEl = document.querySelector('input[name="cx"]:checked');
   const tests = {}; Object.keys(TESTS).forEach(k=>{ const t=readRapid(k); if(t) tests[k]=t; });
-  if(!cxEl && !Object.keys(tests).length) return err("Mark at least one result: culture, FilmArray or NGS.");
+  if(!cxEl && !Object.keys(tests).length) return err("Mark at least one result: culture, FilmArray, NGS or FLU NGS.");
   for (const k of Object.keys(tests)) if (tests[k].result==="Detected" && !(tests[k].isolates||[]).length) return err(`Enter the organism detected by ${TESTS[k]}.`);
   const culture = cxEl ? {result:cxEl.value, siteSpec:specOf("cx"), specimen:specOf("cx")} : null;
   if (cxEl && cxEl.value==="Positive"){
@@ -1306,7 +1320,7 @@ function buildReport(list, from, to, icuTitle){
   const firsts=orig.map(c=>(c.reviews||[])[0]).filter(Boolean);
   const anyT=(c,k,pos)=>[...(c.reviews||[]).map(r=>r.tests),c.tests].some(t=>t&&t[k]&&(!pos||t[k].result==="Detected"));
   const rapidDe=list.filter(c=>(c.reviews||[]).some(r=>r.decision==="De-escalate" && r.tests && Object.values(r.tests).some(t=>t.result==="Detected") && !(r.culture && r.culture.result==="Positive"))).length;
-  const rapidRows=[["FilmArray sent",list.filter(c=>anyT(c,"fa")).length],["FilmArray detected",list.filter(c=>anyT(c,"fa",1)).length],["NGS sent",list.filter(c=>anyT(c,"ngs")).length],["NGS detected",list.filter(c=>anyT(c,"ngs",1)).length],["De-escalated on rapid test, before culture",rapidDe]];
+  const rapidRows=[["FilmArray sent",list.filter(c=>anyT(c,"fa")).length],["FilmArray detected",list.filter(c=>anyT(c,"fa",1)).length],["NGS sent",list.filter(c=>anyT(c,"ngs")).length],["NGS detected",list.filter(c=>anyT(c,"ngs",1)).length],["FLU NGS sent",list.filter(c=>anyT(c,"flu")).length],["FLU NGS detected",list.filter(c=>anyT(c,"flu",1)).length],["De-escalated on rapid test, before culture",rapidDe]];
   const withCx=firsts.filter(r=>r.culture && r.culture.result!=="Pending" && r.culture.result!=="Not sent");
   const pos=firsts.filter(r=>r.culture&&r.culture.result==="Positive");
   const neg=firsts.filter(r=>r.culture&&r.culture.result==="No growth");
@@ -1356,7 +1370,7 @@ function buildReport(list, from, to, icuTitle){
     return `<tr${lead?' class="pfirst"':''}>${lead||""}<td class="n">${dd(c.startedAt)}</td>
       <td>${esc(drugs)}${isLinked(c)?`<div class="sm">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</div>`:""}</td><td>${esc(AW_LABEL[aware(c.drug)])}</td>
       <td>${esc(indLabel(c).replace(" (culture-directed)",""))}</td><td>${esc(c.rationale||"–")}</td><td>${esc(c.site)}</td><td class="c">${c.cultureSent?"Y":"N"}</td>
-      <td>${cxT}</td><td>${rt("fa")}</td><td>${rt("ngs")}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
+      <td>${cxT}</td><td>${rt("fa")}</td><td>${rt("ngs")}</td><td>${rt("flu")}</td><td class="n${fH!=null&&fH>lim?" late":""}">${fH==null?"–":Math.round(fH)+" h"}</td><td>${dec}</td>
       <td>${c.ack?esc(c.ack.by)+" "+dd(c.ack.at):"–"}</td><td class="n${over?" late":""}">${c.plannedDays?(+c.plannedDays||0)+" d":"–"}</td>
       <td>${c.status==="stopped"?"Stopped "+dd(c.stoppedAt):"Active"}</td><td class="n">${dur.toFixed(1)}</td></tr>`;
   };
@@ -1393,7 +1407,7 @@ function buildReport(list, from, to, icuTitle){
   <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n)}${tbl("ICU",count(list,c=>icuName(c)||"Not recorded"),n)}${tbl("Indication",count(list,indLabel),n)}${tbl("Suspected source",count(list,c=>c.site),n)}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
   <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n)}${tbl("Rapid diagnostics",rapidRows,list.length)}${tbl("Organisms isolated (culture)",Object.entries(orgs).sort((a,b)=>b[1]-a[1]).slice(0,10),Object.values(orgs).reduce((a,b)=>a+b,0))}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n)}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${pts.length} patient${pts.length===1?"":"s"}, ${n} antibiotic course${n===1?"":"s"})</h2>
-  <table class="list"><thead><tr><th>S.No</th><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>FilmArray</th><th>NGS</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="list"><thead><tr><th>S.No</th><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>FilmArray</th><th>NGS</th><th>FLU NGS</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
   <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h for empirical, 24 h for prophylaxis, or by the end of the planned course for targeted, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
   </body></html>`;
 }
