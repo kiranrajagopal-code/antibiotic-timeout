@@ -322,7 +322,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     <button class="tab" role="tab" id="tabDone" aria-selected="false" type="button">Stopped</button>
   </nav>
 
-  <div class="searchrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="q" placeholder="Search bed, code name or antibiotic" autocomplete="off" aria-label="Search"></div>
+  <div class="searchrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="q" placeholder="Search bed, name or antibiotic" autocomplete="off" aria-label="Search"></div>
 
   <section id="activeView" class="list" aria-live="polite"></section>
   <section id="doneView" hidden></section>
@@ -340,9 +340,8 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     </div>
     <div class="row2">
       <div class="field"><label for="fBed">Bed no.</label><input type="text" id="fBed" maxlength="12" autocomplete="off" placeholder="e.g. 7"></div>
-      <div class="field"><label for="fCode">Code name</label><input type="text" id="fCode" maxlength="20" autocomplete="off" autocapitalize="words" placeholder="e.g. Falcon"></div>
+      <div class="field"><label for="fCode">Patient name</label><input type="text" id="fCode" maxlength="40" autocomplete="off" autocapitalize="words" placeholder="e.g. Sherly"></div>
     </div>
-    <div class="hint">Use a code name only. Never enter the patient's real name or IP number.</div>
     <div class="field"><label for="fStart">Started</label><input type="datetime-local" id="fStart"></div>
     <div class="field"><label for="fDrug">Antibiotic</label><input type="text" id="fDrug" list="drugList" autocomplete="off" placeholder="Type or pick"></div>
     <div class="row2">
@@ -355,6 +354,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     <div class="field"><label for="fRat">Rationale</label><input type="text" id="fRat" list="ratList" maxlength="160" autocomplete="off" spellcheck="true" autocapitalize="sentences" autocorrect="on" placeholder="Why this antibiotic? Type or pick"></div>
     <div id="fMore" class="swrows"></div>
     <button class="btn quiet" type="button" id="fMoreAdd" style="align-self:flex-start;padding-left:0">+ Add another antibiotic</button>
+    <label class="check" id="fHasResF"><input type="checkbox" id="fHasRes"> Positive result available (culture / FilmArray / NGS / FLU NGS)</label>
     <div class="sec" id="fCxSec" hidden>
       <div class="field"><span class="lab">Positive result from</span>
         <div class="chips" id="fSrc">
@@ -672,7 +672,14 @@ $("fSrcSpec").addEventListener("change", ()=>{ $("fSrcSpecOF").hidden = $("fSrcS
 $("fIsoAdd").onclick=()=>{ const dr=formDrugs(); isoRow($("fIsos"), null, dr.length?dr:["This antibiotic"], fSrc()!=="cx"); };
 
 const cultureProven = () => $("fInd").value==="Targeted (culture-directed)" || /culture[- ]proven|PCR|FilmArray|NGS/i.test($("fRat").value);
-function syncCxSec(){ $("fCxSec").hidden = !cultureProven(); if(!$("fCxSec").hidden && !$("fIsos").children.length) rebuildSrc([]); }
+const resOn = () => cultureProven() || $("fHasRes").checked;
+function syncCxSec(){
+  const req = cultureProven();
+  if (req) $("fHasRes").checked = true;
+  $("fHasRes").disabled = req;
+  $("fCxSec").hidden = !resOn();
+  if(!$("fCxSec").hidden && !$("fIsos").children.length) rebuildSrc([]);
+}
 const indLabel = c => { const base = c.indication==="Other" ? (c.indOther ? "Other: "+c.indOther : "Other") : (c.indication || "–");
   return c.origIndication && c.origIndication!==c.indication ? base+" (started "+String(c.origIndication).toLowerCase()+")" : base; };
 const isTargetPlan = c => c.indication==="Targeted (culture-directed)" && +c.plannedDays>0;
@@ -905,7 +912,7 @@ function render(){
         </div>
       </article>`;
     };
-    // one compact row per patient (ICU + bed + code name); tap to expand full details
+    // one compact row per patient (ICU + bed + name); tap to expand full details
     const groups=[]; const byKey={};
     act.forEach(x=>{ const k=[icuName(x.c),x.c.bed,x.c.codeName].join("|").toLowerCase(); if(!byKey[k]){ byKey[k]={k,items:[]}; groups.push(byKey[k]); } byKey[k].items.push(x); });
     $("activeView").innerHTML = groups.map(g=>{
@@ -991,6 +998,7 @@ function openAdd(c, preset){
   // culture fields (prefill on edit)
   $("fMore").innerHTML=""; $("fMoreAdd").hidden = !!c; $("fIsos").innerHTML="";
   document.querySelector('input[name="fsrc"][value="cx"]').checked = true; $("fSrcSiteF").hidden = true; $("fSrcSpecO").value="";
+  $("fHasRes").checked = !!(c && ((c.culture && c.culture.result==="Positive") || (c.tests && Object.keys(TESTS).some(k=>c.tests[k] && c.tests[k].result==="Detected"))));
   if (c && c.culture && c.culture.result==="Positive"){
     const own = !c.culture.susFor || c.culture.susFor===c.drug;
     isolatesOf(c.culture).forEach(i=>isoRow($("fIsos"), {specimen:i.specimen, organism:i.organism, susBy: own&&i.sus?{[c.drug]:i.sus}:{}}, [c.drug]));
@@ -1007,6 +1015,7 @@ $("addBtn").onclick = ()=>{ if(db) openAdd(null); };
 document.addEventListener("click", e=>{ const b=e.target.closest("[data-addfor]"); if(!b) return; const c=courses.find(x=>x.id===b.dataset.addfor); if(c) openAdd(null, c); });
 $("addCancel").onclick = ()=>{ $("addScrim").hidden=true; editId=null; };
 $("fRat").addEventListener("input", syncCxSec);
+$("fHasRes").addEventListener("change", ()=>{ if(!$("fHasRes").checked) $("fIsos").innerHTML=""; syncCxSec(); });
 $("fIcu").addEventListener("change", ()=>{ $("fIcuOtherF").hidden = $("fIcu").value!=="Other"; if($("fIcu").value==="Other") $("fIcuOther").focus(); });
 $("fRat").addEventListener("change", syncCxSec);
 $("fInd").addEventListener("change", ()=>{ syncCxSec(); $("fPlanReq").hidden = $("fInd").value!=="Targeted (culture-directed)";
@@ -1022,7 +1031,7 @@ $("addForm").addEventListener("submit", async e=>{
   const icu=$("fIcu").value, icuOther=$("fIcuOther").value.trim();
   if(icu==="Other" && !icuOther) return err("Enter the ICU name.");
   if(!bed) return err("Enter the bed number.");
-  if(!codeName) return err("Enter the patient's code name.");
+  if(!codeName) return err("Enter the patient's name.");
   if(!drug) return err("Enter the antibiotic.");
   if(!start || isNaN(start)) return err("Enter the start time.");
   if(start.getTime() > Date.now()+5*60e3) return err("Start time can't be in the future.");
@@ -1030,7 +1039,7 @@ $("addForm").addEventListener("submit", async e=>{
   const indOther = $("fIndOther").value.trim();
   const isos = readIsos($("fIsos"));
   const c0x = editId ? courses.find(x=>x.id===editId) : null;
-  if (cultureProven() && !isos.length) return err("Enter the organism identified.");
+  if (resOn() && !isos.length) return err("Enter the organism identified.");
   const extra = editId ? [] : [...$("fMore").querySelectorAll(".swrow")].map(r=>({drug:r.querySelector(".mDrug").value.trim(), rationale:r.querySelector(".mRat").value.trim()})).filter(r=>r.drug||r.rationale);
   if (extra.some(r=>!r.drug)) return err("Enter the name of each extra antibiotic.");
   if (extra.some(r=>!r.rationale)) return err("Enter the rationale for each extra antibiotic.");
@@ -1059,8 +1068,10 @@ $("addForm").addEventListener("submit", async e=>{
   const src = fSrc();
   const srcSite = $("fSrcSpec").value==="Other" ? ($("fSrcSpecO").value.trim()||"Other") : $("fSrcSpec").value;
   const rapidT = isos.length && src!=="cx" ? {[src]:{result:"Detected", specimen:srcSite, isolates:isos.map(i=>({organism:i.organism}))}} : null;
-  if (cultureProven() && isos.length && src==="cx") data.culture = cultureFor(isos, drug); else if (editId) data.culture = null;
-  if (cultureProven() && rapidT) data.tests = Object.assign({}, (c0x&&c0x.tests)||{}, rapidT); else if (editId && !(c0x && c0x.reviews && c0x.reviews.length)) data.tests = null;
+  if (resOn() && isos.length && src==="cx") data.culture = cultureFor(isos, drug); else if (editId) data.culture = null;
+  if (resOn() && rapidT) data.tests = Object.assign({}, (c0x&&c0x.tests)||{}, rapidT);
+  else if (editId && !resOn() && c0x && c0x.tests && !(c0x.reviews||[]).some(r=>r.tests)) data.tests = null;
+  else if (editId && resOn() && src==="cx" && c0x && c0x.tests && !(c0x.reviews||[]).some(r=>r.tests)) data.tests = null; else if (editId && !(c0x && c0x.reviews && c0x.reviews.length)) data.tests = null;
   $("addSave").disabled=true;
   try{
     if (editId){
@@ -1081,8 +1092,8 @@ $("addForm").addEventListener("submit", async e=>{
       await db.collection("courses").add(Object.assign({}, data, { by, status:"active", reviews:[], createdAt:new Date().toISOString() }));
       for (const r of extra){
         const d2 = Object.assign({}, data, { drug:r.drug, aware:aware(r.drug), rationale:r.rationale, by, status:"active", reviews:[], createdAt:new Date().toISOString() });
-        if (cultureProven() && isos.length && src==="cx") d2.culture = cultureFor(isos, r.drug);
-        if (cultureProven() && rapidT) d2.tests = rapidT;
+        if (resOn() && isos.length && src==="cx") d2.culture = cultureFor(isos, r.drug);
+        if (resOn() && rapidT) d2.tests = rapidT;
         await db.collection("courses").add(d2);
       }
     }
@@ -1501,7 +1512,7 @@ function buildReport(list, from, to, icuTitle){
     ["Ran past planned stop", pct(overran.length,planned.length), overran.length+" of "+planned.length+" with a planned duration"],
     ["Median duration (stopped)", fd(median(dot)), stopped.length+" stopped · "+switches+" switches"]
   ];
-  // group courses by patient (ICU + bed + code name): one serial number per patient
+  // group courses by patient (ICU + bed + name): one serial number per patient
   const pts=[]; const pk={};
   list.forEach(c=>{ const k=[icuName(c),c.bed,c.codeName].join("|").toLowerCase(); if(!pk[k]){ pk[k]={items:[]}; pts.push(pk[k]); } pk[k].items.push(c); });
   pts.forEach(p=>p.items.sort((a,b)=>Date.parse(a.startedAt)-Date.parse(b.startedAt)));
@@ -1559,8 +1570,8 @@ function buildReport(list, from, to, icuTitle){
   <div class="grid">${tbl("AWaRe category",count(list,c=>AW_LABEL[aware(c.drug)]),n,"courses")}${tbl("ICU",ptCount(c=>[icuName(c)||"Not recorded"]),nP,"patients")}${tbl("Indication at start",count(list,c=>{ const si=startInd(c); return si==="Other" ? "Other: "+(c.indOther||"") : si; }).concat(list.filter(c=>c.origIndication&&c.origIndication!==c.indication).length?[["→ later changed to targeted", list.filter(c=>c.origIndication&&c.origIndication!==c.indication).length]]:[]),n,"courses")}${tbl("Suspected source",ptCount(c=>[c.site]),nP,"patients")}${tbl("Decision at 1st time-out",Object.entries(firstDec).sort((a,b)=>b[1]-a[1]),firsts.length)}</div>
   <div class="grid">${tbl("Most used antibiotics (top 10)",count(list,c=>c.drug).slice(0,10),n,"courses")}${tbl("Organisms — culture",orgRows,nP,"patients")}${tbl("Rapid diagnostics",rapidRows.concat(rapidOrgRows),nP,"patients")}${tbl("Rationale (top 10)",count(list,c=>c.rationale).slice(0,10),n,"courses")}${tbl("All time-out decisions",Object.entries(allDec).sort((a,b)=>b[1]-a[1]),allRevs.length)}</div>
   <h2>Line listing (${pts.length} patient${pts.length===1?"":"s"}, ${n} antibiotic course${n===1?"":"s"})</h2>
-  <table class="list"><thead><tr><th>S.No</th><th>ICU</th><th>Bed</th><th>Code</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>FilmArray</th><th>NGS</th><th>FLU NGS</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
-  <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h for empirical, 24 h for prophylaxis, or by the end of the planned course for targeted, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date. Patients are identified by bed number and code name only.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
+  <table class="list"><thead><tr><th>S.No</th><th>ICU</th><th>Bed</th><th>Name</th><th>Started</th><th>Antibiotic</th><th>AWaRe</th><th>Indication</th><th>Rationale</th><th>Source</th><th>Cx sent</th><th>Culture result</th><th>FilmArray</th><th>NGS</th><th>FLU NGS</th><th>1st T/O</th><th>Decisions</th><th>Alert ack</th><th>Plan</th><th>Status</th><th>Days</th></tr></thead><tbody>${rows}</tbody></table>
+  <footer>Each antibiotic is one row; an antibiotic started at a time-out gets its own row, marked "from …" (replaced) or "added to …" (add-on). Time-out on time = first time-out (or stop) within 72 h for empirical, 24 h for prophylaxis, or by the end of the planned course for targeted, counted for new courses whose deadline has passed. Culture result S/R/N = current antibiotic sensitive / resistant / not tested. Plan in red = ran more than 12 h past the planned stop date.<br><b>Antibiotic Time-out</b> · developed by Dr Kiran Rajagopal</footer>
   </body></html>`;
 }
 

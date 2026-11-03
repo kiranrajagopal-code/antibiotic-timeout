@@ -6,7 +6,7 @@
 An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks every antibiotic course from its start and flags the 72-hour time-out review (24 hours for prophylaxis).
 
 ## What it does
-- Log each antibiotic: ICU (CCU, NSICU or other, named), bed number, code name, start time, indication (empirical / targeted / prophylaxis / other, specified), rationale, suspected source, planned duration, cultures sent before first dose
+- Log each antibiotic: ICU (CCU, NSICU or other, named), bed number, patient name, start time, indication (empirical / targeted / prophylaxis / other, specified), rationale, suspected source, planned duration, cultures sent before first dose
 - Time-out deadline: 72 h for empirical, 24 h for prophylaxis; targeted (culture-directed) courses alert at the end of their planned duration
 - Record the decision at time-out: continue, de-escalate, IV to oral, escalate, new infection or stop, with reasons and diagnostics — Culture, FilmArray, NGS and FLU NGS recorded independently (any one is enough), each with its site (Blood, BAL, CSF, Fluid, nasopharyngeal swab or other), organisms, sensitive/resistant for culture and resistance genes for FilmArray/NGS
 - Change antibiotics in the same window: keep the current antibiotic and add new ones, or stop it and replace — each new antibiotic is linked to the original record. A new empirical antibiotic (e.g. for a new infection during targeted therapy) gets its own 72 h clock, source and culture status
@@ -21,7 +21,6 @@ An Android and iPhone app for antimicrobial stewardship in the ICU. It tracks ev
 
 ## Data and privacy
 - Data is saved on the phone only. It is not sent anywhere and is not shared between devices. Use Backup regularly.
-- Identify patients by bed number and a code name only. Never enter real names or IP numbers.
 
 This tool supports, and does not replace, the hospital antibiotic policy.
 
