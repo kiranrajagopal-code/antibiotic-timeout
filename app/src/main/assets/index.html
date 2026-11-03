@@ -140,6 +140,9 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .ptmain span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ptrow .pill{font-size:12px;padding:6px 9px;white-space:nowrap}
 .pill.alertp{background:var(--alert);color:var(--alert-ink)}
+.pill.done{background:var(--surface-2);color:var(--muted)}
+.pt.done::before{background:var(--line)}
+.orgHint{align-self:flex-start;margin-top:6px;font:600 13px var(--font);color:var(--accent);background:var(--accent-soft);border:0;border-radius:999px;padding:6px 10px;cursor:pointer}
 .chev{width:18px;height:18px;color:var(--muted);transition:transform .2s}
 .pt.open .chev{transform:rotate(180deg)}
 .ptbody{display:flex;flex-direction:column;gap:10px;padding:0 10px 10px}
@@ -337,7 +340,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
     </div>
     <div class="row2">
       <div class="field"><label for="fBed">Bed no.</label><input type="text" id="fBed" maxlength="12" autocomplete="off" placeholder="e.g. 7"></div>
-      <div class="field"><label for="fCode">Code name</label><input type="text" id="fCode" maxlength="20" autocomplete="off" placeholder="e.g. Falcon"></div>
+      <div class="field"><label for="fCode">Code name</label><input type="text" id="fCode" maxlength="20" autocomplete="off" autocapitalize="words" placeholder="e.g. Falcon"></div>
     </div>
     <div class="hint">Use a code name only. Never enter the patient's real name or IP number.</div>
     <div class="field"><label for="fStart">Started</label><input type="datetime-local" id="fStart"></div>
@@ -349,7 +352,7 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
         <select id="fSite"><option>Pneumonia</option><option>Blood / line (CLABSI)</option><option>Urine (CAUTI / UTI)</option><option>Intra-abdominal</option><option>Skin / soft tissue</option><option>CNS</option><option>Sepsis, source unknown</option><option>Other</option></select></div>
     </div>
     <div class="field" id="fIndOtherF" hidden><label for="fIndOther">Indication — please specify</label><input type="text" id="fIndOther" maxlength="80" autocomplete="off" placeholder="e.g. Febrile neutropenia, pre-emptive antifungal"></div>
-    <div class="field"><label for="fRat">Rationale</label><input type="text" id="fRat" list="ratList" maxlength="160" autocomplete="off" placeholder="Why this antibiotic? Type or pick"></div>
+    <div class="field"><label for="fRat">Rationale</label><input type="text" id="fRat" list="ratList" maxlength="160" autocomplete="off" spellcheck="true" autocapitalize="sentences" autocorrect="on" placeholder="Why this antibiotic? Type or pick"></div>
     <div id="fMore" class="swrows"></div>
     <button class="btn quiet" type="button" id="fMoreAdd" style="align-self:flex-start;padding-left:0">+ Add another antibiotic</button>
     <div class="sec" id="fCxSec" hidden>
@@ -594,10 +597,11 @@ const AW_LABEL = {Access:"Access",Watch:"Watch",Reserve:"Reserve",NotRec:"Unclas
 const RATIONALES = ["Septic shock, source unknown","Severe community-acquired pneumonia","Hospital-acquired / ventilator-associated pneumonia",
   "Prior MDR colonisation or infection","Antibiotics in last 90 days","Immunocompromised / neutropenic","Per local antibiogram",
   "Culture-proven, per susceptibility","Microbiology / ID advice","Surgical prophylaxis","Procedure prophylaxis",
+  "Suspected meningitis / meningoencephalitis","Suspected VAP","Suspected CLABSI","Suspected UTI / CAUTI","Suspected intra-abdominal sepsis",
   "Influenza / viral pneumonia (PCR / FilmArray)","Suspected invasive candidiasis","Suspected invasive aspergillosis / mucormycosis","CMV / HSV reactivation","Pre-emptive antifungal"];
 const ORGS = ["Escherichia coli","Klebsiella pneumoniae","Pseudomonas aeruginosa","Acinetobacter baumannii","Enterobacter spp.","Proteus spp.",
   "Serratia spp.","Stenotrophomonas maltophilia","Staphylococcus aureus (MSSA)","MRSA","Coagulase-negative staphylococci","Enterococcus faecalis",
-  "Enterococcus faecium (VRE)","Streptococcus pneumoniae","Haemophilus influenzae","Burkholderia pseudomallei","Mycoplasma pneumoniae","Legionella pneumophila","Chlamydophila pneumoniae","Orientia tsutsugamushi (scrub typhus)","Leptospira","Mycobacterium tuberculosis",
+  "Enterococcus faecium (VRE)","Streptococcus pneumoniae","Streptococcus agalactiae (GBS)","Streptococcus pyogenes (GAS)","Viridans streptococci","Neisseria meningitidis","Listeria monocytogenes","Salmonella Typhi / Paratyphi","Klebsiella oxytoca","Citrobacter spp.","Morganella morganii","Elizabethkingia meningoseptica","Clostridioides difficile","Bacteroides fragilis","Nocardia spp.","Haemophilus influenzae","Burkholderia pseudomallei","Mycoplasma pneumoniae","Legionella pneumophila","Chlamydophila pneumoniae","Orientia tsutsugamushi (scrub typhus)","Leptospira","Mycobacterium tuberculosis",
   "Candida albicans","Candida auris","Candida glabrata","Candida tropicalis","Candida parapsilosis","Candida krusei","Candida (non-albicans)","Aspergillus fumigatus","Aspergillus spp.","Mucorales","Cryptococcus neoformans","Pneumocystis jirovecii",
   "Influenza A (H1N1)","Influenza A (H3N2)","Influenza A (unsubtyped)","Influenza B","SARS-CoV-2","RSV","Human metapneumovirus","Adenovirus","Rhinovirus / Enterovirus","Parainfluenza virus","Cytomegalovirus (CMV)","Herpes simplex virus (HSV)","Varicella-zoster virus (VZV)","Epstein-Barr virus (EBV)",
   "Mixed growth"];
@@ -633,6 +637,7 @@ const openRows=new Set();
 document.addEventListener("click", e=>{ const b=e.target.closest("[data-row]"); if(!b) return; const k=b.dataset.row; openRows.has(k)?openRows.delete(k):openRows.add(k); render(); });
 let db=null, courses=[], view="active", current=null, deleteArmed=false, editId=null;
 const SCRIMS=["addScrim","toScrim","ackScrim","pdfScrim","dataScrim","dcScrim"];
+const firstRev = c => (c.reviews||[]).find(r=>r.decision!=="Left ICU");   // discharge is not a time-out
 const ptKey = c => [icuName(c),c.bed,c.codeName].join("|").toLowerCase();
 const LEFT = "Left ICU";
 
@@ -644,7 +649,7 @@ function moreRow(){
   const n=$("fMore").children.length;
   const d=document.createElement("div"); d.className="swrow";
   d.innerHTML=`<div class="field"><label>Antibiotic ${n+2}</label><input type="text" class="mDrug" list="drugList" autocomplete="off" placeholder="Type or pick"></div>
-    <div class="field rf"><label>Rationale</label><input type="text" class="mRat" list="ratList" maxlength="160" autocomplete="off" placeholder="Why this antibiotic?"></div>
+    <div class="field rf"><label>Rationale</label><input type="text" class="mRat" list="ratList" maxlength="160" autocomplete="off" spellcheck="true" autocapitalize="sentences" placeholder="Why this antibiotic?"></div>
     <button class="btn quiet x mX" type="button" aria-label="Remove">✕</button>`;
   $("fMore").appendChild(d); $("fMoreAdd").hidden = $("fMore").children.length>=3; d.querySelector(".mDrug").focus();
 }
@@ -779,6 +784,26 @@ function cultureTxt(cx){
   return "Culture: "+isolatesOf(cx).map(i=>`${i.organism} (${i.specimen})${i.sus?" · "+(cx.susFor?cx.susFor+" ":"")+String(i.sus).toLowerCase():""}`).join("; ");
 }
 let isoSeq=0;
+function lev(a,b){ a=a.toLowerCase(); b=b.toLowerCase(); const m=a.length,n=b.length; if(!m) return n; if(!n) return m;
+  let p=[...Array(n+1).keys()]; for(let i=1;i<=m;i++){ const q=[i]; for(let j=1;j<=n;j++) q[j]=Math.min(p[j]+1,q[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1)); p=q; } return p[n]; }
+function orgSuggest(v){
+  v=(v||"").trim(); if(v.length<4) return null;
+  if (ORGS.some(o=>o.toLowerCase()===v.toLowerCase())) return null;
+  let best=null, bd=99;
+  ORGS.forEach(o=>{
+    const plain=o.replace(/\s*\(.*\)\s*/g,"").trim(), words=plain.split(/\s+/);
+    const cands=[plain, words[words.length-1]];
+    if (words.length>1) cands.push(words[0][0]+". "+words.slice(1).join(" "));
+    cands.forEach(cnd=>{ const d=lev(v,cnd), lim=Math.max(1,Math.floor(cnd.length*0.2)); if(d<=lim && d<bd){ bd=d; best=o; } });
+  });
+  return best;
+}
+document.addEventListener("input", e=>{ const inp=e.target.closest(".isoOrg"); if(!inp) return;
+  let h=inp.parentElement.querySelector(".orgHint"); const sug=orgSuggest(inp.value);
+  if(!sug){ if(h) h.remove(); return; }
+  if(!h){ h=document.createElement("button"); h.type="button"; h.className="orgHint"; inp.after(h); }
+  h.textContent="Did you mean "+sug+"?"; h.dataset.v=sug; });
+document.addEventListener("click", e=>{ const h=e.target.closest(".orgHint"); if(!h) return; const inp=h.parentElement.querySelector(".isoOrg"); inp.value=h.dataset.v; h.remove(); });
 const readSus = row => { const o={}; row.querySelectorAll('.isoSus input:checked').forEach(r=>o[r.dataset.drug]=r.value); return o; };
 function renderSus(row, drugs, prev){
   const cur = Object.assign({}, prev||{}, readSus(row));
@@ -832,7 +857,7 @@ function render(){
       const revs = c.reviews||[], lr = revs[revs.length-1];
       const last = lr ? `Last: ${esc(lr.decision)} · ${fmt(lr.at)}` : (c.cultureSent ? "Cultures sent before first dose" : "No cultures before first dose");
       const cx = lastCulture(c);
-      const tx = [...revs].reverse().map(r=>r.tests).find(Boolean) || c.tests;
+      const tx = c.tests || [...revs].reverse().map(r=>r.tests).find(Boolean);
       const tag = isProph(c) ? "Prophylaxis past 24 h — stop or justify" : "Empirical at 72 h with no time-out";
       const ackTxt = c.ack ? `<div class="meta ackline">${isProph(c)?"24":"72"} h alert acknowledged by ${esc(c.ack.by)} · ${fmt(c.ack.at)}</div>` : "";
       return `<article class="course ${st.s==="overdue"?"overdue":"pending"}${st.pastStop?" paststop":""}${al?" alert":""}">
@@ -887,19 +912,34 @@ function render(){
   }
   // stopped
   const done = courses.filter(c=>c.status==="stopped" && matchQ(c)).sort((a,b)=>Date.parse(b.stoppedAt)-Date.parse(a.stoppedAt));
-  $("doneView").innerHTML = !done.length ? `<div class="empty">No stopped courses yet.</div>` :
-    `<div class="tablewrap"><table><thead><tr><th>Bed</th><th>Code name</th><th>Antibiotic</th><th>Indication</th><th>Started</th><th>Stopped</th><th>Days</th><th>1st time-out</th><th>Outcome</th><th></th></tr></thead><tbody>${
-      done.map(c=>{
-        const s=Date.parse(c.startedAt), revs=c.reviews||[];
-        const drugs=[...new Set([...revs.map(r=>r.fromDrug).filter(Boolean), c.drug])].join(" → ");
-        const first = revs[0] ? Math.round((Date.parse(revs[0].at)-s)/H)+" h" : "–";
-        const late = revs[0] && (Date.parse(revs[0].at)-s)>deadlineH(c)*H;
-        const lr = revs[revs.length-1];
-        const out = lr ? esc(lr.decision)+(lr.switchedTo?" → "+esc(lr.switchedTo.join(", ")):"") : "Stopped";
-        return `<tr><td><button class="bedlink" type="button" data-edit="${esc(c.id)}" aria-label="Edit details">${esc((icuName(c)?icuName(c)+" ":"")+c.bed)}</button></td><td>${esc(c.codeName||"–")}</td><td>${esc(drugs)}${isLinked(c)?`<br><span class="meta">${c.linkMode==="add"?"added to":"from"} ${esc(c.linkedFromDrug)}</span>`:""}${c.demo?' <i>(example)</i>':''}</td><td>${esc(indLabel(c))}</td><td class="num">${fmt(c.startedAt)}</td><td class="num">${fmt(c.stoppedAt)}</td>
-          <td class="num">${((Date.parse(c.stoppedAt)-s)/D).toFixed(1)}</td><td class="num" style="${late?'color:var(--over)':''}">${first}</td>
-          <td>${out}</td><td><button class="btn quiet" type="button" data-to="${esc(c.id)}">Details</button></td></tr>`;
-      }).join("")}</tbody></table></div>`;
+  const dg=[]; const dk={};
+  done.forEach(c=>{ const k="d:"+ptKey(c); if(!dk[k]){ dk[k]={k,items:[]}; dg.push(dk[k]); } dk[k].items.push(c); });
+  $("doneView").innerHTML = !done.length ? `<div class="empty">No stopped courses yet.</div>` : `<div class="list">${dg.map(g=>{
+    const c=g.items[0], open=openRows.has(g.k), lastStop=Math.max(...g.items.map(x=>Date.parse(x.stoppedAt)));
+    const why = g.items.map(x=>x.stopReason).find(Boolean);
+    return `<section class="pt done${open?" open":""}">
+      <button class="ptrow" type="button" data-row="${esc(g.k)}" aria-expanded="${open}">
+        <span class="tile"><span class="k">${esc(icuName(c)||"Bed")}</span><span class="v">${esc(c.bed)}</span></span>
+        <span class="ptmain"><b>${esc(c.codeName||"–")}</b><span>${g.items.map(x=>esc(x.drug)).join(" · ")}</span></span>
+        <span class="pill done">${why?esc(why.replace(" from ICU","")):"Stopped "+fdate(lastStop)}</span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      ${open?`<div class="ptbody">${g.items.map(x=>{
+        const s0=Date.parse(x.startedAt), revs=x.reviews||[], lr=revs[revs.length-1];
+        const fr = firstRev(x);
+        const first = fr ? Math.round((Date.parse(fr.at)-s0)/H)+" h" : "–";
+        const late = fr && (Date.parse(fr.at)-s0)>deadlineH(x)*H;
+        const out = lr ? esc(lr.decision)+(lr.switchedTo?" → "+esc(lr.switchedTo.join(", ")):"")+(lr.reasons&&lr.reasons.length?" — "+esc(lr.reasons.join("; ")):"") : "Stopped";
+        return `<article class="course done"><div class="mid">
+          <button class="penbtn" type="button" data-edit="${esc(x.id)}" aria-label="Edit ${esc(x.drug)} details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+          <div class="drug">${esc(x.drug)} ${aware(x.drug)==="NotRec"?"":`<span class="aw ${aware(x.drug)}">${AW_LABEL[aware(x.drug)]}</span>`}</div>
+          ${isLinked(x)?`<div class="linkline">${x.linkMode==="add"?"Added to":"From"} ${esc(x.linkedFromDrug)}</div>`:""}
+          <div class="meta"><span class="mono">${fmt(x.startedAt)} → ${fmt(x.stoppedAt)} · ${((Date.parse(x.stoppedAt)-s0)/D).toFixed(1)} d</span> · ${esc(indLabel(x))}</div>
+          <div class="meta">First time-out: <span style="${late?'color:var(--over);font-weight:700':''}">${first}</span> · Outcome: ${out}</div>
+          ${dxHtml(lastCulture(x), x.tests || [...revs].reverse().map(r=>r.tests).find(Boolean))}
+          <button class="btn quiet" type="button" data-to="${esc(x.id)}" style="align-self:flex-start;padding-left:0">History &amp; delete</button>
+        </div></article>`; }).join("")}</div>`:""}
+    </section>`; }).join("")}</div>`;
 }
 
 /* tabs */
@@ -999,7 +1039,7 @@ $("addForm").addEventListener("submit", async e=>{
   const srcSite = $("fSrcSpec").value==="Other" ? ($("fSrcSpecO").value.trim()||"Other") : $("fSrcSpec").value;
   const rapidT = isos.length && src!=="cx" ? {[src]:{result:"Detected", specimen:srcSite, isolates:isos.map(i=>({organism:i.organism}))}} : null;
   if (cultureProven() && isos.length && src==="cx") data.culture = cultureFor(isos, drug); else if (editId) data.culture = null;
-  if (cultureProven() && rapidT) data.tests = rapidT; else if (editId && !(c0x && c0x.reviews && c0x.reviews.length)) data.tests = null;
+  if (cultureProven() && rapidT) data.tests = Object.assign({}, (c0x&&c0x.tests)||{}, rapidT); else if (editId && !(c0x && c0x.reviews && c0x.reviews.length)) data.tests = null;
   $("addSave").disabled=true;
   try{
     if (editId){
@@ -1035,7 +1075,7 @@ function swRow(){
   const n = $("swRows").children.length;
   const d = document.createElement("div"); d.className="swrow";
   d.innerHTML = `<div class="field"><label>New antibiotic${n?" "+(n+1):""}</label><input type="text" class="swDrug" list="drugList" autocomplete="off" placeholder="Type or pick"></div>
-    <div class="field rf"><label>Rationale</label><input type="text" class="swRat" list="ratList" maxlength="160" autocomplete="off" placeholder="Why this antibiotic?"></div>
+    <div class="field rf"><label>Rationale</label><input type="text" class="swRat" list="ratList" maxlength="160" autocomplete="off" spellcheck="true" autocapitalize="sentences" placeholder="Why this antibiotic?"></div>
     ${n?`<button class="btn quiet x" type="button" aria-label="Remove">✕</button>`:"<span></span>"}`;
   $("swRows").appendChild(d);
   $("swAdd").hidden = $("swRows").children.length>=3;
@@ -1385,7 +1425,7 @@ function buildReport(list, from, to, icuTitle){
   const orig=list.filter(c=>!isLinked(c)), linked=list.filter(isLinked);
   const emp=list.filter(c=>startInd(c)==="Empirical");
   const cult=orig.filter(c=>c.cultureSent).length;
-  const firstH=c=>{const r=(c.reviews||[])[0]; return r?(Date.parse(r.at)-Date.parse(c.startedAt))/H:null;};
+  const firstH=c=>{const r=firstRev(c); return r?(Date.parse(r.at)-Date.parse(c.startedAt))/H:null;};
   const leftEarly=c=>{ const r=(c.reviews||[])[0]; return r && r.decision===LEFT && (Date.parse(r.at)-Date.parse(c.startedAt))<=deadlineH(c)*H; };
   const elig=orig.filter(c=>!leftEarly(c)).filter(c=>firstH(c)!=null || c.status==="stopped" || now-Date.parse(c.startedAt)>deadlineH(c)*H);
   const onTime=elig.filter(c=>{const s=Date.parse(c.startedAt), lim=deadlineH(c)*H, r=(c.reviews||[])[0];
@@ -1396,7 +1436,7 @@ function buildReport(list, from, to, icuTitle){
   const acked=alertable.filter(c=>c.ack);
   const proph=list.filter(isProph);
   const prophLong=proph.filter(c=>((c.status==="stopped"?Date.parse(c.stoppedAt):now)-Date.parse(c.startedAt))>24*H);
-  const firsts=orig.map(c=>(c.reviews||[])[0]).filter(Boolean);
+  const firsts=orig.map(firstRev).filter(Boolean);
   const anyT=(c,k,pos)=>[...(c.reviews||[]).map(r=>r.tests),c.tests].some(t=>t&&t[k]&&(!pos||t[k].result==="Detected"));
   const rapidDe=list.filter(c=>(c.reviews||[]).some(r=>r.decision==="De-escalate" && r.tests && Object.values(r.tests).some(t=>t.result==="Detected") && !(r.culture && r.culture.result==="Positive"))).length;
   const rapidRows=[["FilmArray sent",list.filter(c=>anyT(c,"fa")).length],["FilmArray detected",list.filter(c=>anyT(c,"fa",1)).length],["NGS sent",list.filter(c=>anyT(c,"ngs")).length],["NGS detected",list.filter(c=>anyT(c,"ngs",1)).length],["FLU NGS sent",list.filter(c=>anyT(c,"flu")).length],["FLU NGS detected",list.filter(c=>anyT(c,"flu",1)).length],["De-escalated on rapid test, before culture",rapidDe]];
