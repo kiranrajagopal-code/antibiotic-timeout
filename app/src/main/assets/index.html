@@ -150,6 +150,7 @@ body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;fo
 .ptbody .course::before{display:none}
 .penbtn{position:absolute;top:10px;right:10px;width:36px;height:36px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--accent);cursor:pointer}
 .penbtn svg{width:16px;height:16px}
+.earlier{padding:2px 4px 6px;color:var(--muted,#56665F)}
 .ptactions{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;padding:2px 2px 4px}
 .ptactions .btn{padding:10px 14px;font-size:13.5px}
 .ptbody .mid{position:relative;padding-right:44px}
@@ -461,8 +462,10 @@ footer{font-size:12.5px;color:var(--muted);line-height:1.55;padding-top:6px;max-
         <label class="chip"><input type="radio" name="dec" value="IV to oral"><span>IV → oral</span></label>
         <label class="chip"><input type="radio" name="dec" value="Escalate"><span>Escalate</span></label>
         <label class="chip"><input type="radio" name="dec" value="New infection"><span>New infection</span></label>
+        <label class="chip"><input type="radio" name="dec" value="Change drug"><span>Change drug</span></label>
         <label class="chip"><input type="radio" name="dec" value="Stop"><span>Stop</span></label>
       </div>
+      <div class="meta" id="stopHint" hidden style="margin-top:6px">Stopping because of a side effect and starting another drug? Choose <b>Change drug</b> — the new drug is linked to this one and stays in Active.</div>
     </div>
     <div class="field"><span class="lab">Reason (pick all that apply)</span>
       <div class="chips" id="toReasons"></div>
@@ -611,12 +614,16 @@ const REASONS = {
   "IV to oral":["Afebrile, haemodynamically stable","Tolerating enteral feeds","Oral option covers organism"],
   "Escalate":["Clinical worsening","Resistant organism isolated","New source of infection"],
   "New infection":["New infection suspected","New fever / sepsis","New site (VAP, CLABSI, CAUTI, SSI)","Clinical worsening"],
+  "Change drug":["Side effect / adverse reaction","Allergy / rash","Renal or liver toxicity","Cytopenia","Drug interaction / QT prolongation","Drug not available"],
   "Stop":["Course complete","Infection unlikely / alternative diagnosis","Cultures negative, clinically improving","Source controlled","Contaminant / colonisation only","Prophylaxis complete","Goals of care changed"]
 };
-const SWITCH = ["De-escalate","IV to oral","Escalate","New infection"];
+const SWITCH = ["De-escalate","IV to oral","Escalate","New infection","Change drug"];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const aware = d => DRUGS[d] || "Other";
+// case-insensitive, ignores route suffix: "minocycline" matches "Minocycline (IV)"
+const aware = d => { if (DRUGS[d]) return DRUGS[d]; const v=String(d||"").trim().toLowerCase(); if(!v) return "Other";
+  const k = Object.keys(DRUGS).find(k=>k.toLowerCase()===v || k.toLowerCase().replace(/\s*\(.*\)\s*/g,"")===v.replace(/\s*\(.*\)\s*/g,""));
+  return k ? DRUGS[k] : "Other"; };
 const pad = n => String(n).padStart(2,"0");
 const toLocalInput = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const fmt = iso => { const d=new Date(iso); return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+" "+pad(d.getHours())+":"+pad(d.getMinutes()); };
@@ -942,6 +949,8 @@ function render(){
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         ${open?`<div class="ptbody">${g.items.map(card).join("")}
+          ${(()=>{ const ss=courses.filter(x=>x.status==="stopped" && ptKey(x)===g.k).sort((a,b)=>Date.parse(b.stoppedAt)-Date.parse(a.stoppedAt));
+            return ss.length?`<div class="meta earlier">Stopped earlier: ${ss.map(x=>`${esc(x.drug)} (${fdate(Date.parse(x.stoppedAt))}${(()=>{const r=(x.reviews||[]).slice(-1)[0]; return r&&r.reasons&&r.reasons.length?" — "+esc(r.reasons[0]):x.stopReason?" — "+esc(x.stopReason):"";})()})`).join("; ")}</div>`:""; })()}
           <div class="ptactions"><button class="btn" type="button" data-addfor="${esc(c.id)}">+ Add antibiotic</button><button class="btn quiet" type="button" data-leave="${esc(g.k)}">Discharge / stop all</button></div></div>`:""}
       </section>`;
     }).join("");
@@ -953,11 +962,12 @@ function render(){
   $("doneView").innerHTML = !done.length ? `<div class="empty">No stopped courses yet.</div>` : `<div class="list">${dg.map(g=>{
     const c=g.items[0], open=openRows.has(g.k), lastStop=Math.max(...g.items.map(x=>Date.parse(x.stoppedAt)));
     const why = g.items.map(x=>x.stopReason).find(Boolean);
+    const still = courses.filter(x=>x.status!=="stopped" && ptKey(x)===ptKey(c));
     return `<section class="pt done${open?" open":""}">
       <button class="ptrow" type="button" data-row="${esc(g.k)}" aria-expanded="${open}">
         <span class="tile"><span class="k">${esc(icuName(c)||"Bed")}</span><span class="v">${esc(c.bed)}</span></span>
         <span class="ptmain"><b>${esc(c.codeName||"–")}</b><span>${g.items.map(x=>esc(x.drug)).join(" · ")}</span></span>
-        <span class="pill done">${why?esc(why.replace(" from ICU","")):"Stopped "+fdate(lastStop)}</span>
+        <span class="pill ${still.length?"pending":"done"}">${still.length?"On "+esc(still.map(x=>x.drug).join(", ")):why?esc(why.replace(" from ICU","")):"Stopped "+fdate(lastStop)}</span>
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </button>
       ${open?`<div class="ptbody">${g.items.map(x=>{
@@ -974,7 +984,8 @@ function render(){
           <div class="meta">First time-out: <span style="${late?'color:var(--over);font-weight:700':''}">${first}</span> · Outcome: ${out}</div>
           ${dxHtml(lastCulture(x), curTests(x), true)}
           <button class="btn quiet" type="button" data-to="${esc(x.id)}" style="align-self:flex-start;padding-left:0">History &amp; delete</button>
-        </div></article>`; }).join("")}</div>`:""}
+        </div></article>`; }).join("")}
+        <div class="ptactions">${still.length?`<button class="btn primary" type="button" data-goact="${esc(ptKey(c))}">Now on ${esc(still.map(x=>x.drug).join(", "))} — view in Active</button>`:""}<button class="btn" type="button" data-addfor="${esc(c.id)}">+ Add antibiotic</button></div></div>`:""}
     </section>`; }).join("")}</div>`;
 }
 
@@ -1021,6 +1032,7 @@ function openAdd(c, preset){
   $("addScrim").hidden=false; if(!c) (preset ? $("fDrug") : $("fBed")).focus();
 }
 $("addBtn").onclick = ()=>{ if(db) openAdd(null); };
+document.addEventListener("click", e=>{ const b=e.target.closest("[data-goact]"); if(!b) return; openRows.add(b.dataset.goact); setView("active"); render(); });
 document.addEventListener("click", e=>{ const b=e.target.closest("[data-addfor]"); if(!b) return; const c=courses.find(x=>x.id===b.dataset.addfor); if(c) openAdd(null, c); });
 $("addCancel").onclick = ()=>{ $("addScrim").hidden=true; editId=null; };
 $("fRat").addEventListener("input", syncCxSec);
@@ -1105,6 +1117,7 @@ $("addForm").addEventListener("submit", async e=>{
       }
     } else {
       await db.collection("courses").add(Object.assign({}, data, { by, status:"active", reviews:[], createdAt:new Date().toISOString() }));
+      openRows.add(ptKey(data)); setView("active");
       for (const r of extra){
         const d2 = Object.assign({}, data, { drug:r.drug, aware:aware(r.drug), rationale:r.rationale, by, status:"active", reviews:[], createdAt:new Date().toISOString() });
         if (resOn() && isos.length && src==="cx") d2.culture = cultureFor(isos, r.drug);
@@ -1158,6 +1171,7 @@ function syncToForm(){
     if (pos && !$(k+"Isos").children.length) isoRow($(k+"Isos"), null, [c0?c0.drug:"Current antibiotic"], k!=="cx");
   });
   $("swEmp").hidden = !(sw && $("swInd").value==="Empirical");
+  $("stopHint").hidden = dec!=="Stop";
 }
 function fillReasons(dec){
   $("toReasons").innerHTML = (REASONS[dec]||[]).map((r,i)=>`<label class="chip"><input type="checkbox" name="rsn" value="${esc(r)}" id="rsn${i}"><span>${esc(r)}</span></label>`).join("")
@@ -1171,6 +1185,9 @@ $("toDec").addEventListener("change", e=>{ if(e.target.name==="dec"){
   document.querySelectorAll('input[name="swMode"]').forEach(r=>r.checked = !["Escalate","New infection"].includes(d) && r.value==="replace");
   const cxNow = ["cx","fa","ngs","flu"].some(k=>["Positive","Detected"].includes((document.querySelector(`input[name="${k}"]:checked`)||{}).value)) ? "Positive" : "";
   $("swInd").value = d==="New infection" ? "Empirical" : (cxNow==="Positive" ? "Targeted (culture-directed)" : "Empirical");
+  if (d==="Change drug"){ const c=courses.find(x=>x.id===current);   // same indication; the replacement finishes the remaining planned days
+    if (c){ $("swInd").value = c.indication==="Targeted (culture-directed)" ? c.indication : "Empirical";
+      if (c.plannedDays){ const left=Math.ceil((plannedStop(c)-Date.now())/D); $("swPlan").value = Math.max(1, Math.min(42, left)); } } }
   if (d==="New infection"){ const c=courses.find(x=>x.id===current); $("swSite").value = c&&c.site || "Pneumonia"; $("swCult").checked=true; }
   syncToForm(); } });
 ["cx","fa","ngs","flu"].forEach(k=>{
